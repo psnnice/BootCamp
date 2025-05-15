@@ -1,0 +1,512 @@
+// ไฟล์ - swagger.yaml
+openapi: 3.0.0
+info:
+  title: VolunteerHub API
+  description: API สำหรับระบบจัดการงานอาสาและกิจกรรมมหาวิทยาลัย
+  version: 1.0.0
+  contact:
+    name: VolunteerHub Team
+servers:
+  - url: http://localhost:3000
+    description: Development Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: รหัสผู้ใช้
+        student_id:
+          type: string
+          description: รหัสนิสิต
+        full_name:
+          type: string
+          description: ชื่อ-นามสกุล
+        role:
+          type: string
+          description: บทบาทของผู้ใช้งาน
+          enum: [STUDENT, STAFF, ADMIN]
+        is_banned:
+          type: boolean
+          description: สถานะการระงับบัญชี
+        faculty_name:
+          type: string
+          description: ชื่อคณะ
+        major_name:
+          type: string
+          description: ชื่อสาขา
+        profile_image:
+          type: string
+          description: URL รูปโปรไฟล์
+        created_at:
+          type: string
+          format: date-time
+          description: วันเวลาที่สร้าง
+      example:
+        id: 1
+        student_id: "12345678"
+        full_name: "ชื่อ นามสกุล"
+        role: "STUDENT"
+        is_banned: false
+        faculty_name: "คณะเทคโนโลยีสารสนเทศและการสื่อสาร"
+        major_name: "สาขาวิชาวิศวกรรมซอฟต์แวร์"
+        profile_image: null
+        created_at: "2023-07-20T10:00:00.000Z"
+
+tags:
+  - name: Authentication
+    description: การจัดการระบบยืนยันตัวตน
+  - name: Users
+    description: การจัดการข้อมูลผู้ใช้งาน
+
+paths:
+  /api:
+    get:
+      summary: ตรวจสอบสถานะเซิร์ฟเวอร์
+      responses:
+        '200':
+          description: Server is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Server is running
+                  version:
+                    type: string
+                    example: 1.0.0
+                  name:
+                    type: string
+                    example: VolunteerHub API
+  
+  /api/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: ลงทะเบียนผู้ใช้ใหม่
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - student_id
+                - password
+                - full_name
+              properties:
+                student_id:
+                  type: string
+                  description: รหัสนิสิต 8 หลัก
+                password:
+                  type: string
+                  format: password
+                  description: รหัสผ่าน
+                full_name:
+                  type: string
+                  description: ชื่อ-นามสกุล
+                faculty_id:
+                  type: integer
+                  description: รหัสคณะ
+                major_id:
+                  type: integer
+                  description: รหัสสาขา
+              example:
+                student_id: "12345678"
+                password: "password123"
+                full_name: "ชื่อ นามสกุล"
+                faculty_id: 2
+                major_id: 7
+      responses:
+        '201':
+          description: ลงทะเบียนสำเร็จ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: ลงทะเบียนสำเร็จ
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+                      token:
+                        type: string
+        '400':
+          description: ข้อมูลไม่ถูกต้อง
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: กรุณากรอกข้อมูลให้ครบถ้วน
+  
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: เข้าสู่ระบบ
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - student_id
+                - password
+              properties:
+                student_id:
+                  type: string
+                  description: รหัสนิสิต 8 หลัก
+                password:
+                  type: string
+                  format: password
+                  description: รหัสผ่าน
+              example:
+                student_id: "12345678"
+                password: "password123"
+      responses:
+        '200':
+          description: เข้าสู่ระบบสำเร็จ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: เข้าสู่ระบบสำเร็จ
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+                      token:
+                        type: string
+        '401':
+          description: ข้อมูลไม่ถูกต้อง
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: รหัสนิสิตหรือรหัสผ่านไม่ถูกต้อง
+  
+  /api/auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: ดึงข้อมูลผู้ใช้ปัจจุบัน
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: ดึงข้อมูลสำเร็จ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      student_id:
+                        type: string
+                      full_name:
+                        type: string
+                      role:
+                        type: string
+                      faculty_id:
+                        type: integer
+                      faculty_name:
+                        type: string
+                      major_id:
+                        type: integer
+                      major_name:
+                        type: string
+                      total_hours:
+                        type: number
+                      total_points:
+                        type: number
+        '401':
+          description: ไม่มีสิทธิ์เข้าถึง
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: กรุณาเข้าสู่ระบบก่อนเข้าถึงข้อมูล
+  
+  /api/users:
+    get:
+      tags:
+        - Users
+      summary: ดึงข้อมูลผู้ใช้ทั้งหมด
+      responses:
+        '200':
+          description: ดึงข้อมูลสำเร็จ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 10
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+  
+  /api/users/{id}:
+    get:
+      tags:
+        - Users
+      summary: ดึงข้อมูลผู้ใช้ตาม ID
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: รหัสผู้ใช้
+      responses:
+        '200':
+          description: ดึงข้อมูลสำเร็จ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/User'
+        '404':
+          description: ไม่พบข้อมูล
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: ไม่พบข้อมูลผู้ใช้$ref: '#/components/schemas/User'
+                      token:
+                        type: string
+        '401':
+          description: ข้อมูลไม่ถูกต้อง
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: รหัสนิสิตหรือรหัสผ่านไม่ถูกต้อง
+  
+  /api/auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: ดึงข้อมูลผู้ใช้ปัจจุบัน
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: ดึงข้อมูลสำเร็จ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      student_id:
+                        type: string
+                      full_name:
+                        type: string
+                      role:
+                        type: string
+                      faculty_id:
+                        type: integer
+                      faculty_name:
+                        type: string
+                      major_id:
+                        type: integer
+                      major_name:
+                        type: string
+                      total_hours:
+                        type: number
+                      total_points:
+                        type: number
+        '401':
+          description: ไม่มีสิทธิ์เข้าถึง
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: กรุณาเข้าสู่ระบบก่อนเข้าถึงข้อมูล
+  
+  /api/faculties:
+    get:
+      tags:
+        - Faculties
+      summary: ดึงข้อมูลคณะทั้งหมด
+      responses:
+        '200':
+          description: ดึงข้อมูลสำเร็จ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 17
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Faculty'
+  
+  /api/majors:
+    get:
+      tags:
+        - Faculties
+      summary: ดึงข้อมูลสาขาทั้งหมด
+      responses:
+        '200':
+          description: ดึงข้อมูลสำเร็จ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 64
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Major'
+  
+  /api/faculties/{faculty_id}/majors:
+    get:
+      tags:
+        - Faculties
+      summary: ดึงข้อมูลสาขาตามคณะ
+      parameters:
+        - in: path
+          name: faculty_id
+          schema:
+            type: integer
+          required: true
+          description: รหัสคณะ
+      responses:
+        '200':
+          description: ดึงข้อมูลสำเร็จ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  faculty:
+                    $ref: '#/components/schemas/Faculty'
+                  count:
+                    type: integer
+                    example: 7
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        faculty_id:
+                          type: integer
+        '404':
+          description: ไม่พบข้อมูล
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: ไม่พบข้อมูลคณะที่ระบุ

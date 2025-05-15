@@ -3,7 +3,9 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/user');
 const { errorHandler } = require('./middleware/errorHandler');
+const { swaggerUi, swaggerDocs } = require('./config/swagger');
 require('dotenv').config();
 
 const app = express();
@@ -13,8 +15,21 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api', userRoutes); // เส้นทางสำหรับข้อมูลผู้ใช้
+
+// Root endpoint
+app.get('/api', (req, res) => {
+  res.status(200).json({
+    status: 'Server is running',
+    version: '1.0.0',
+    name: 'VolunteerHub API'
+  });
+});
 
 // Error handling middleware
 app.use(errorHandler);
@@ -23,6 +38,7 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  console.log(`Swagger Documentation is available at http://localhost:${PORT}/api-docs`);
 });
 
 // Export app for testing
