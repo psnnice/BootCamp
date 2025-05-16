@@ -1,10 +1,11 @@
-// ไฟล์ - app.js (ปรับปรุง)
+// ไฟล์ - app.js (เพิ่มเติม)
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
-const activityRoutes = require('./routes/activity'); // เพิ่มเข้ามาใหม่
+const activityRoutes = require('./routes/activity');
+const facultyRoutes = require('./routes/faculty'); // เพิ่มเข้ามาใหม่
 const { errorHandler } = require('./middleware/errorHandler');
 const { swaggerUi, swaggerDocs } = require('./config/swagger');
 require('dotenv').config();
@@ -21,8 +22,12 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api', userRoutes); // เส้นทางสำหรับข้อมูลผู้ใช้
-app.use('/api/activities', activityRoutes); // เพิ่มเส้นทางสำหรับกิจกรรม
+app.use('/api', userRoutes);
+app.use('/api/activities', activityRoutes);
+app.use('/api/faculties', facultyRoutes); // เพิ่มเส้นทางสำหรับคณะและสาขา
+
+// เส้นทางเพิ่มเติมสำหรับสาขาทั้งหมด
+app.use('/api/majors', express.Router().get('/', require('./controllers/facultyController').getAllMajors));
 
 // Root endpoint
 app.get('/api', (req, res) => {
@@ -38,7 +43,7 @@ app.use(errorHandler);
 
 // Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => { // เปลี่ยนเป็นรับการเชื่อมต่อจากทุก IP
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Swagger Documentation is available at http://localhost:${PORT}/api-docs`);
 });
