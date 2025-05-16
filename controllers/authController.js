@@ -97,13 +97,19 @@ exports.register = async (req, res, next) => {
   }
 };
 
-// เข้าสู่ระบบ
 exports.login = async (req, res, next) => {
   try {
+    console.log('====== LOGIN ATTEMPT ======');
+    console.log('Email:', req.body.email);
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('IP:', req.ip);
+    console.log('User-Agent:', req.headers['user-agent']);
+    
     const { email, password } = req.body;
 
     // ตรวจสอบข้อมูลที่จำเป็น
     if (!email || !password) {
+      console.log('LOGIN FAILED: Missing email or password');
       return res.status(400).json({
         success: false,
         message: 'กรุณากรอกอีเมลและรหัสผ่าน'
@@ -112,8 +118,9 @@ exports.login = async (req, res, next) => {
 
     // ค้นหาผู้ใช้งานจากอีเมล
     const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
-
+    
     if (users.length === 0) {
+      console.log('LOGIN FAILED: User not found -', email);
       return res.status(401).json({
         success: false,
         message: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
@@ -124,6 +131,7 @@ exports.login = async (req, res, next) => {
 
     // ตรวจสอบว่าผู้ใช้งานถูกระงับหรือไม่
     if (user.is_banned) {
+      console.log('LOGIN FAILED: User is banned -', email);
       return res.status(403).json({
         success: false,
         message: 'บัญชีผู้ใช้ถูกระงับการใช้งาน'
@@ -134,6 +142,7 @@ exports.login = async (req, res, next) => {
     const isMatch = await bcrypt.compare(password, user.password_hash);
 
     if (!isMatch) {
+      console.log('LOGIN FAILED: Incorrect password -', email);
       return res.status(401).json({
         success: false,
         message: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
@@ -142,6 +151,11 @@ exports.login = async (req, res, next) => {
 
     // สร้าง Token
     const token = generateToken(user.id);
+    
+    console.log('LOGIN SUCCESS:', email);
+    console.log('User ID:', user.id);
+    console.log('Role:', user.role);
+    console.log('====== LOGIN COMPLETE ======');
 
     // ส่งข้อมูลผู้ใช้งานกลับไป (ไม่รวมรหัสผ่าน)
     const userData = {
@@ -165,6 +179,7 @@ exports.login = async (req, res, next) => {
       }
     });
   } catch (err) {
+    console.error('LOGIN ERROR:', err);
     next(err);
   }
 };

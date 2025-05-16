@@ -41,6 +41,15 @@ app.get('/api', (req, res) => {
 // Error handling middleware
 app.use(errorHandler);
 
+
+
+app.use(cors({
+  origin: '*',  // ในกรณีทดสอบอาจเปิดกว้าง แต่ในโปรดักชันควรระบุเฉพาะโดเมนที่อนุญาต
+  credentials: true
+}));
+
+
+
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
