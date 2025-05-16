@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS `volunteer_system`.`faculties` (
   PRIMARY KEY (`id`),
   UNIQUE INDEX `name` (`name` ASC) VISIBLE)
 ENGINE = InnoDB
-AUTO_INCREMENT = 6
+AUTO_INCREMENT = 18
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS `volunteer_system`.`majors` (
     REFERENCES `volunteer_system`.`faculties` (`id`)
     ON DELETE CASCADE)
 ENGINE = InnoDB
-AUTO_INCREMENT = 6
+AUTO_INCREMENT = 60
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
@@ -56,6 +56,7 @@ COLLATE = utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS `volunteer_system`.`users` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
   `student_id` VARCHAR(8) NULL DEFAULT NULL,
+  `email` VARCHAR(100) NULL DEFAULT NULL,
   `password_hash` VARCHAR(255) NOT NULL,
   `full_name` VARCHAR(100) NOT NULL,
   `role` ENUM('STUDENT', 'STAFF', 'ADMIN') NOT NULL DEFAULT 'STUDENT',
@@ -66,6 +67,7 @@ CREATE TABLE IF NOT EXISTS `volunteer_system`.`users` (
   `profile_image` VARCHAR(255) NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `student_id` (`student_id` ASC) VISIBLE,
+  UNIQUE INDEX `email_UNIQUE` (`email` ASC) VISIBLE,
   INDEX `faculty_id` (`faculty_id` ASC) VISIBLE,
   INDEX `major_id` (`major_id` ASC) VISIBLE,
   CONSTRAINT `users_ibfk_1`
@@ -77,6 +79,7 @@ CREATE TABLE IF NOT EXISTS `volunteer_system`.`users` (
     REFERENCES `volunteer_system`.`majors` (`id`)
     ON DELETE SET NULL)
 ENGINE = InnoDB
+AUTO_INCREMENT = 6
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
