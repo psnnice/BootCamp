@@ -2,6 +2,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/db');
+const { emit } = require('../app');
 
 // ฟังก์ชันสร้าง Token
 const generateToken = (id) => {
@@ -13,54 +14,49 @@ const generateToken = (id) => {
 // ลงทะเบียนผู้ใช้งานใหม่
 exports.register = async (req, res, next) => {
   try {
-    const { student_id, password, full_name, faculty_id, major_id } = req.body;
+    const { student_id, email, password, full_name, faculty_id, major_id } = req.body;
 
     // ตรวจสอบข้อมูลที่จำเป็น
-    if (!student_id || !password || !full_name) {
+    if (!email || !password || !full_name) {
       return res.status(400).json({
         success: false,
         message: 'กรุณากรอกข้อมูลให้ครบถ้วน'
       });
     }
 
-    // ตรวจสอบรูปแบบรหัสนิสิตว่าเป็น 8 หลักหรือไม่
-    if (student_id.length !== 8 || isNaN(student_id)) {
+    // ตรวจสอบรูปแบบอีเมล
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
       return res.status(400).json({
         success: false,
-        message: 'รหัสนิสิตต้องเป็นตัวเลข 8 หลัก'
+        message: 'รูปแบบอีเมลไม่ถูกต้อง'
       });
     }
 
-    // ตรวจสอบว่ารหัสนิสิตซ้ำหรือไม่
-    const [existingUser] = await pool.query(
-      'SELECT * FROM users WHERE student_id = ?',
-      [student_id]
+    // ตรวจสอบว่าอีเมลซ้ำหรือไม่
+    const [existingEmail] = await pool.query(
+      'SELECT * FROM users WHERE email = ?',
+      [email]
     );
 
-    if (existingUser.length > 0) {
+    if (existingEmail.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'รหัสนิสิตนี้ถูกใช้งานแล้ว'
+        message: 'อีเมลนี้ถูกใช้งานแล้ว'
       });
     }
 
-    // ตรวจสอบว่า faculty_id และ major_id มีอยู่จริงหรือไม่ (ถ้ามีการระบุมา)
-    if (faculty_id) {
-      const [faculty] = await pool.query('SELECT * FROM faculties WHERE id = ?', [faculty_id]);
-      if (faculty.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'ไม่พบคณะที่ระบุ'
-        });
-      }
-    }
+    // ตรวจสอบว่ารหัสนิสิตซ้ำหรือไม่ (ถ้ามีการระบุมา)
+    if (student_id) {
+      const [existingUser] = await pool.query(
+        'SELECT * FROM users WHERE student_id = ?',
+        [student_id]
+      );
 
-    if (major_id) {
-      const [major] = await pool.query('SELECT * FROM majors WHERE id = ?', [major_id]);
-      if (major.length === 0) {
+      if (existingUser.length > 0) {
         return res.status(400).json({
           success: false,
-          message: 'ไม่พบสาขาที่ระบุ'
+          message: 'รหัสนิสิตนี้ถูกใช้งานแล้ว'
         });
       }
     }
@@ -71,14 +67,14 @@ exports.register = async (req, res, next) => {
 
     // บันทึกข้อมูลผู้ใช้งานใหม่
     const [result] = await pool.query(
-      'INSERT INTO users (student_id, password_hash, full_name, role, faculty_id, major_id) VALUES (?, ?, ?, ?, ?, ?)',
-      [student_id, password_hash, full_name, 'STUDENT', faculty_id || null, major_id || null]
+      'INSERT INTO users (student_id, email, password_hash, full_name, role, faculty_id, major_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [student_id || null, email, password_hash, full_name, 'STUDENT', faculty_id || null, major_id || null]
     );
 
     if (result.affectedRows === 1) {
       // ดึงข้อมูลผู้ใช้งานที่เพิ่งสร้าง (ไม่รวมรหัสผ่าน)
       const [newUser] = await pool.query(
-        'SELECT id, student_id, full_name, role, created_at, faculty_id, major_id FROM users WHERE id = ?',
+        'SELECT id, student_id, email, full_name, role, created_at, faculty_id, major_id FROM users WHERE id = ?',
         [result.insertId]
       );
 
@@ -104,23 +100,23 @@ exports.register = async (req, res, next) => {
 // เข้าสู่ระบบ
 exports.login = async (req, res, next) => {
   try {
-    const { student_id, password } = req.body;
+    const { email, password } = req.body;
 
     // ตรวจสอบข้อมูลที่จำเป็น
-    if (!student_id || !password) {
+    if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'กรุณากรอกรหัสนิสิตและรหัสผ่าน'
+        message: 'กรุณากรอกอีเมลและรหัสผ่าน'
       });
     }
 
-    // ค้นหาผู้ใช้งานจากรหัสนิสิต
-    const [users] = await pool.query('SELECT * FROM users WHERE student_id = ?', [student_id]);
+    // ค้นหาผู้ใช้งานจากอีเมล
+    const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
 
     if (users.length === 0) {
       return res.status(401).json({
         success: false,
-        message: 'รหัสนิสิตหรือรหัสผ่านไม่ถูกต้อง'
+        message: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
       });
     }
 
@@ -140,7 +136,7 @@ exports.login = async (req, res, next) => {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: 'รหัสนิสิตหรือรหัสผ่านไม่ถูกต้อง'
+        message: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
       });
     }
 
@@ -151,6 +147,7 @@ exports.login = async (req, res, next) => {
     const userData = {
       id: user.id,
       student_id: user.student_id,
+      email: user.email,
       full_name: user.full_name,
       role: user.role,
       faculty_id: user.faculty_id,

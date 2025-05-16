@@ -26,12 +26,17 @@ const router = express.Router();
  *             type: object
  *             required:
  *               - student_id
+ *               - email
  *               - password
  *               - full_name
  *             properties:
  *               student_id:
  *                 type: string
  *                 description: รหัสนิสิต 8 หลัก
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: อีเมลสำหรับติดต่อและยืนยันตัวตน
  *               password:
  *                 type: string
  *                 format: password
@@ -47,6 +52,7 @@ const router = express.Router();
  *                 description: รหัสสาขา
  *             example:
  *               student_id: "12345678"
+ *               email: "student@example.com"
  *               password: "password123"
  *               full_name: "ชื่อ นามสกุล"
  *               faculty_id: 2
@@ -110,18 +116,19 @@ router.post('/register', register);
  *           schema:
  *             type: object
  *             required:
- *               - student_id
+ *               - email
  *               - password
  *             properties:
- *               student_id:
+ *               email:
  *                 type: string
- *                 description: รหัสนิสิต 8 หลัก
+ *                 format: email
+ *                 description: อีเมลที่ใช้สำหรับเข้าสู่ระบบ
  *               password:
  *                 type: string
  *                 format: password
  *                 description: รหัสผ่าน
  *             example:
- *               student_id: "12345678"
+ *               email: "user@example.com"
  *               password: "password123"
  *     responses:
  *       200:
@@ -147,6 +154,8 @@ router.post('/register', register);
  *                           type: integer
  *                         student_id:
  *                           type: string
+ *                         email:
+ *                           type: string
  *                         full_name:
  *                           type: string
  *                         role:
@@ -165,7 +174,7 @@ router.post('/register', register);
  *                   example: false
  *                 message:
  *                   type: string
- *                   example: รหัสนิสิตหรือรหัสผ่านไม่ถูกต้อง
+ *                   example: อีเมลหรือรหัสผ่านไม่ถูกต้อง
  */
 router.post('/login', login);
 

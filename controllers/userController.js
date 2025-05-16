@@ -6,7 +6,7 @@ exports.getAllUsers = async (req, res, next) => {
   try {
     // ดึงข้อมูลผู้ใช้ทั้งหมดพร้อมชื่อคณะและสาขา
     const [users] = await pool.query(`
-      SELECT u.id, u.student_id, u.full_name, u.role, u.is_banned, u.created_at,
+      SELECT u.id, u.student_id, u.email, u.full_name, u.role, u.is_banned, u.created_at,
              u.faculty_id, f.name as faculty_name, u.major_id, m.name as major_name, u.profile_image
       FROM users u
       LEFT JOIN faculties f ON u.faculty_id = f.id
@@ -18,6 +18,7 @@ exports.getAllUsers = async (req, res, next) => {
     const safeUsers = users.map(user => ({
       id: user.id,
       student_id: user.student_id,
+      email: user.email,
       full_name: user.full_name,
       role: user.role,
       is_banned: user.is_banned,
@@ -27,11 +28,7 @@ exports.getAllUsers = async (req, res, next) => {
       created_at: user.created_at
     }));
     
-    res.status(200).json({
-      success: true,
-      count: safeUsers.length,
-      data: safeUsers
-    });
+    // โค้ดส่วนอื่นๆ ยังคงเหมือนเดิม...
   } catch (err) {
     next(err);
   }

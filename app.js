@@ -1,9 +1,10 @@
-// ไฟล์ - app.js (Entry point)
+// ไฟล์ - app.js (ปรับปรุง)
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
+const activityRoutes = require('./routes/activity'); // เพิ่มเข้ามาใหม่
 const { errorHandler } = require('./middleware/errorHandler');
 const { swaggerUi, swaggerDocs } = require('./config/swagger');
 require('dotenv').config();
@@ -21,6 +22,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api', userRoutes); // เส้นทางสำหรับข้อมูลผู้ใช้
+app.use('/api/activities', activityRoutes); // เพิ่มเส้นทางสำหรับกิจกรรม
 
 // Root endpoint
 app.get('/api', (req, res) => {
@@ -36,7 +38,7 @@ app.use(errorHandler);
 
 // Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => { // เปลี่ยนเป็นรับการเชื่อมต่อจากทุก IP
   console.log(`Server is running on port ${PORT}`);
   console.log(`Swagger Documentation is available at http://localhost:${PORT}/api-docs`);
 });
