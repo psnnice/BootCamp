@@ -8,12 +8,11 @@ exports.getAllActivities = async (req, res, next) => {
     const { page = 1, limit = 10, category, status } = req.query;
     const offset = (page - 1) * limit;
     
-    // สร้าง query string พื้นฐาน
+    // สร้าง query string พื้นฐาน - แก้ไขในส่วนนี้
     let query = `
       SELECT a.*, 
              u.full_name as creator_name, 
-             c.name as category_name,
-             (SELECT COUNT(*) FROM activity_applications aa WHERE aa.activity_id = a.id) as application_count
+             c.name as category_name
       FROM activities a
       LEFT JOIN users u ON a.created_by = u.id
       LEFT JOIN activity_categories c ON a.category_id = c.id
@@ -40,17 +39,48 @@ exports.getAllActivities = async (req, res, next) => {
     }
     
     // นับจำนวนกิจกรรมทั้งหมดที่ตรงตามเงื่อนไข (สำหรับ pagination)
-    const [countResult] = await pool.query(
-      `SELECT COUNT(*) as total FROM activities a WHERE ${query.split('WHERE')[1]}`,
-      params
-    );
+    let countQuery = `
+      SELECT COUNT(*) as total 
+      FROM activities a 
+      WHERE 1=1
+    `; // เปลี่ยนจาก const เป็น let
+    
+    // เพิ่มเงื่อนไขเดียวกับ query หลัก
+    let countParams = []; // ใช้ let แทน const
+    if (!req.user || req.user.role === 'STUDENT') {
+      countQuery += ` AND a.status = 'อนุมัติ'`;
+    } else if (status) {
+      countQuery += ` AND a.status = ?`;
+      countParams.push(status);
+    }
+    
+    if (category) {
+      countQuery += ` AND a.category = ?`;
+      countParams.push(category);
+    }
     
     // เพิ่ม ORDER BY และ LIMIT สำหรับ pagination
     query += ` ORDER BY a.start_time DESC LIMIT ? OFFSET ?`;
     params.push(parseInt(limit), parseInt(offset));
     
-    // ดึงข้อมูลกิจกรรม
+    // ทำ query ทั้งสอง
+    const [countResult] = await pool.query(countQuery, countParams);
     const [activities] = await pool.query(query, params);
+    
+    // เพิ่ม application_count แยกต่างหาก
+    for (const activity of activities) {
+      const [applicationCount] = await pool.query(
+        'SELECT COUNT(*) as count FROM activity_applications WHERE activity_id = ?',
+        [activity.id]
+      );
+      // ถ้า activities เป็น constant และเราพยายาม mutate มัน
+      // อาจเป็นได้ว่า activities เป็น readOnly (e.g., Object.freeze)
+      // ลองใช้วิธีที่ไม่ต้อง mutate activities โดยตรง
+      Object.defineProperty(activity, 'application_count', {
+        value: applicationCount[0].count || 0,
+        enumerable: true
+      });
+    }
     
     res.status(200).json({
       success: true,
@@ -64,6 +94,8 @@ exports.getAllActivities = async (req, res, next) => {
       data: activities
     });
   } catch (err) {
+    console.error('Error in getAllActivities:', err);
+    console.error(err);
     next(err);
   }
 };
@@ -122,3 +154,189 @@ exports.getActivityById = async (req, res, next) => {
   }
 };
 
+
+// controllers/activityController.js (เพิ่มเติม)
+
+/**
+ * อัปเดตสถานะกิจกรรม (เสร็จสิ้น/ยกเลิก)
+ * @route PUT /api/activities/:id/status
+ * @access Private (Staff, Admin)
+ */
+exports.updateActivityStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    // ตรวจสอบว่าสถานะที่ส่งมาถูกต้อง
+    const validStatuses = ['อนุมัติ', 'เสร็จสิ้น', 'ยกเลิก'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'สถานะไม่ถูกต้อง กรุณาระบุ: อนุมัติ, เสร็จสิ้น หรือ ยกเลิก'
+      });
+    }
+    
+    // ตรวจสอบว่ากิจกรรมมีอยู่จริง
+    const [activities] = await pool.query('SELECT * FROM activities WHERE id = ?', [id]);
+    
+    if (activities.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'ไม่พบข้อมูลกิจกรรม'
+      });
+    }
+    
+    // ตรวจสอบว่าผู้ใช้มีสิทธิ์แก้ไขกิจกรรม
+    if (req.user.role !== 'ADMIN' && req.user.id !== activities[0].created_by) {
+      return res.status(403).json({
+        success: false,
+        message: 'คุณไม่มีสิทธิ์แก้ไขกิจกรรมนี้'
+      });
+    }
+    
+    // อัปเดตสถานะกิจกรรม
+    const [result] = await pool.query(
+      'UPDATE activities SET status = ? WHERE id = ?',
+      [status, id]
+    );
+    
+    if (result.affectedRows === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'ไม่สามารถอัปเดตสถานะกิจกรรมได้'
+      });
+    }
+    
+    // ถ้ากิจกรรมเสร็จสิ้น ให้คำนวณชั่วโมงและคะแนนให้ผู้เข้าร่วม
+    if (status === 'เสร็จสิ้น') {
+      // ดึงข้อมูลผู้สมัครที่ได้รับการอนุมัติ
+      const [approvedApplicants] = await pool.query(
+        'SELECT user_id FROM activity_applications WHERE activity_id = ? AND status = "อนุมัติ"',
+        [id]
+      );
+      
+      // คำนวณชั่วโมงกิจกรรม (วันสิ้นสุด - วันเริ่มต้น)
+      const startTime = new Date(activities[0].start_time);
+      const endTime = new Date(activities[0].end_time);
+      const durationHours = (endTime - startTime) / (1000 * 60 * 60); // แปลงเป็นชั่วโมง
+      
+      // คำนวณคะแนน (สมมติว่า 1 ชั่วโมง = 1 คะแนน)
+      const points = durationHours;
+      
+      // บันทึกชั่วโมงและคะแนนสำหรับผู้เข้าร่วมทุกคน
+      for (const applicant of approvedApplicants) {
+        await pool.query(
+          `INSERT INTO activity_participation 
+           (activity_id, user_id, hours, points, verified_by, verified_at) 
+           VALUES (?, ?, ?, ?, ?, NOW())
+           ON DUPLICATE KEY UPDATE 
+           hours = VALUES(hours), 
+           points = VALUES(points), 
+           verified_by = VALUES(verified_by), 
+           verified_at = NOW()`,
+          [id, applicant.user_id, durationHours, points, req.user.id]
+        );
+      }
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: `อัปเดตสถานะกิจกรรมเป็น ${status} สำเร็จ`
+    });
+  } catch (err) {
+    console.error('Error in updateActivityStatus:', err);
+    next(err);
+  }
+};
+
+
+/**
+ * อนุมัติกิจกรรมโดย Admin
+ * @route POST /api/activities/:id/approve
+ * @access Private (Admin only)
+ */
+exports.approveActivity = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { approved } = req.body; // approved: true/false
+    
+    // ตรวจสอบว่ากิจกรรมมีอยู่จริง
+    const [activities] = await pool.query('SELECT * FROM activities WHERE id = ?', [id]);
+    
+    if (activities.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'ไม่พบข้อมูลกิจกรรม'
+      });
+    }
+    
+    // ตรวจสอบว่ากิจกรรมอยู่ในสถานะรออนุมัติ
+    if (activities[0].status !== 'รออนุมัติ') {
+      return res.status(400).json({
+        success: false,
+        message: 'ไม่สามารถอนุมัติกิจกรรมนี้ได้ เนื่องจากไม่อยู่ในสถานะรออนุมัติ'
+      });
+    }
+    
+    // อัปเดตสถานะกิจกรรมตามการตัดสินใจของ Admin
+    const newStatus = approved ? 'อนุมัติ' : 'ปฏิเสธ';
+    
+    const [result] = await pool.query(
+      'UPDATE activities SET status = ? WHERE id = ?',
+      [newStatus, id]
+    );
+    
+    if (result.affectedRows === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'ไม่สามารถอัปเดตสถานะกิจกรรมได้'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: approved 
+        ? 'อนุมัติกิจกรรมสำเร็จ' 
+        : 'ปฏิเสธกิจกรรมสำเร็จ'
+    });
+  } catch (err) {
+    console.error('Error in approveActivity:', err);
+    next(err);
+  }
+};
+
+/**
+ * แก้ไขข้อมูลกิจกรรม
+ * @route PUT /api/activities/:id
+ * @access Private (Staff, Admin)
+ */
+exports.updateActivity = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    
+    // ตรวจสอบว่ากิจกรรมมีอยู่จริง
+    const [activities] = await pool.query('SELECT * FROM activities WHERE id = ?', [id]);
+    
+    if (activities.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'ไม่พบข้อมูลกิจกรรม'
+      });
+    }
+    
+    const activity = activities[0];
+    
+    // ตรวจสอบสิทธิ์ - ต้องเป็น Admin หรือ Staff ที่เป็นเจ้าของกิจกรรม
+    if (req.user.role !== 'ADMIN' && (req.user.role !== 'STAFF' || req.user.id !== activity.created_by)) {
+      console.log('ปฏิเสธการแก้ไข:', req.user.role, req.user.id, activity.created_by);
+      return res.status(403).json({
+        success: false,
+        message: 'คุณไม่มีสิทธิ์แก้ไขกิจกรรมนี้'
+      });
+    }
+    
+    // โค้ดสำหรับแก้ไขข้อมูลกิจกรรม...
+  } catch (err) {
+    next(err);
+  }
+};

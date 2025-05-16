@@ -510,3 +510,6 @@ paths:
                   message:
                     type: string
                     example: ไม่พบข้อมูลคณะที่ระบุ
+
+
+                    
