@@ -1,20 +1,13 @@
-// ไฟล์ - controllers/authController.js
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const { pool } = require('../config/db');
-const { emit } = require('../app');
-
-// ฟังก์ชันสร้าง Token
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN
-  });
-};
+const { generateToken } = require('../middleware/auth');
 
 // ลงทะเบียนผู้ใช้งานใหม่
 exports.register = async (req, res, next) => {
   try {
-    const { student_id, email, password, full_name, faculty_id, major_id } = req.body;
+    const {
+
+ student_id, email, password, full_name, faculty_id, major_id } = req.body;
 
     // ตรวจสอบข้อมูลที่จำเป็น
     if (!email || !password || !full_name) {
@@ -78,8 +71,8 @@ exports.register = async (req, res, next) => {
         [result.insertId]
       );
 
-      // สร้าง Token
-      const token = generateToken(result.insertId);
+      // สร้างและเก็บ Token
+      const token = await generateToken(result.insertId);
 
       res.status(201).json({
         success: true,
@@ -97,6 +90,7 @@ exports.register = async (req, res, next) => {
   }
 };
 
+// เข้าสู่ระบบ
 exports.login = async (req, res, next) => {
   try {
     console.log('====== LOGIN ATTEMPT ======');
@@ -120,6 +114,7 @@ exports.login = async (req, res, next) => {
     const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
     
     if (users.length === 0) {
+ наслед
       console.log('LOGIN FAILED: User not found -', email);
       return res.status(401).json({
         success: false,
@@ -149,8 +144,8 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    // สร้าง Token
-    const token = generateToken(user.id);
+    // สร้างและเก็บ Token
+    const token = await generateToken(user.id);
     
     console.log('LOGIN SUCCESS:', email);
     console.log('User ID:', user.id);
