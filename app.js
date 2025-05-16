@@ -1,21 +1,25 @@
-// ไฟล์ - app.js (เพิ่มเติม)
 const express = require('express');
-const bodyParser = require('body-parser');
-const cors = require('cors');
+require('dotenv').config();
+const { swaggerUi, swaggerDocs } = require('./config/swagger');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
+const userBanRoutes = require('./routes/userBan');
 const activityRoutes = require('./routes/activity');
-const facultyRoutes = require('./routes/faculty'); // เพิ่มเข้ามาใหม่
+const facultyRoutes = require('./routes/faculty');
 const { errorHandler } = require('./middleware/errorHandler');
-const { swaggerUi, swaggerDocs } = require('./config/swagger');
-require('dotenv').config();
 
 const app = express();
 
 // Middleware
-app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public')); // อนุญาตให้เข้าถึงไฟล์ในโฟลเดอร์ public
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*'); // อนุญาตทุก origin
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE'); // อนุญาตทุก method
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization'); // อนุญาต header ที่จำเป็น
+  next();
+});
 
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
@@ -23,10 +27,9 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api', userRoutes);
+app.use('/api', userBanRoutes); // เพิ่ม route สำหรับ userBan
 app.use('/api/activities', activityRoutes);
-app.use('/api/faculties', facultyRoutes); // เพิ่มเส้นทางสำหรับคณะและสาขา
-
-// เส้นทางเพิ่มเติมสำหรับสาขาทั้งหมด
+app.use('/api/faculties', facultyRoutes);
 app.use('/api/majors', express.Router().get('/', require('./controllers/facultyController').getAllMajors));
 
 // Root endpoint
@@ -40,15 +43,6 @@ app.get('/api', (req, res) => {
 
 // Error handling middleware
 app.use(errorHandler);
-
-
-
-app.use(cors({
-  origin: '*',  // ในกรณีทดสอบอาจเปิดกว้าง แต่ในโปรดักชันควรระบุเฉพาะโดเมนที่อนุญาต
-  credentials: true
-}));
-
-
 
 // Start server
 const PORT = process.env.PORT || 3000;
