@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS `volunteer_system`.`users` (
     REFERENCES `volunteer_system`.`majors` (`id`)
     ON DELETE SET NULL)
 ENGINE = InnoDB
-AUTO_INCREMENT = 4
+AUTO_INCREMENT = 6
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS `volunteer_system`.`activity_categories` (
   PRIMARY KEY (`id`),
   UNIQUE INDEX `name` (`name` ASC) VISIBLE)
 ENGINE = InnoDB
-AUTO_INCREMENT = 6
+AUTO_INCREMENT = 11
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
@@ -119,6 +119,9 @@ CREATE TABLE IF NOT EXISTS `volunteer_system`.`activities` (
   PRIMARY KEY (`id`),
   INDEX `created_by` (`created_by` ASC) VISIBLE,
   INDEX `category_id` (`category_id` ASC) VISIBLE,
+  INDEX `idx_activities_status` (`status` ASC) VISIBLE,
+  INDEX `idx_activities_start_time` (`start_time` ASC) VISIBLE,
+  INDEX `idx_activities_end_time` (`end_time` ASC) VISIBLE,
   CONSTRAINT `activities_ibfk_1`
     FOREIGN KEY (`created_by`)
     REFERENCES `volunteer_system`.`users` (`id`)
@@ -128,6 +131,7 @@ CREATE TABLE IF NOT EXISTS `volunteer_system`.`activities` (
     REFERENCES `volunteer_system`.`activity_categories` (`id`)
     ON DELETE SET NULL)
 ENGINE = InnoDB
+AUTO_INCREMENT = 6
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
@@ -146,6 +150,7 @@ CREATE TABLE IF NOT EXISTS `volunteer_system`.`activity_applications` (
   UNIQUE INDEX `activity_user` (`activity_id` ASC, `user_id` ASC) VISIBLE,
   INDEX `user_id` (`user_id` ASC) VISIBLE,
   INDEX `approved_by` (`approved_by` ASC) VISIBLE,
+  INDEX `idx_activity_applications_status` (`status` ASC) VISIBLE,
   CONSTRAINT `activity_applications_ibfk_1`
     FOREIGN KEY (`activity_id`)
     REFERENCES `volunteer_system`.`activities` (`id`)
@@ -216,7 +221,7 @@ CREATE TABLE IF NOT EXISTS `volunteer_system`.`auth_tokens` (
     REFERENCES `volunteer_system`.`users` (`id`)
     ON DELETE CASCADE)
 ENGINE = InnoDB
-AUTO_INCREMENT = 20
+AUTO_INCREMENT = 66
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
@@ -244,6 +249,7 @@ CREATE TABLE IF NOT EXISTS `volunteer_system`.`user_bans` (
     REFERENCES `volunteer_system`.`users` (`id`)
     ON DELETE SET NULL)
 ENGINE = InnoDB
+AUTO_INCREMENT = 4
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
@@ -269,7 +275,7 @@ CREATE TABLE IF NOT EXISTS `volunteer_system`.`user_roles` (
     REFERENCES `volunteer_system`.`users` (`id`)
     ON DELETE SET NULL)
 ENGINE = InnoDB
-AUTO_INCREMENT = 2
+AUTO_INCREMENT = 4
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
@@ -376,6 +382,28 @@ BEGIN
         SIGNAL SQLSTATE '45000' 
         SET MESSAGE_TEXT = 'นามสกุลต้องมีความยาวไม่เกิน 50 ตัวอักษร';
     END IF;
+END$$
+
+USE `volunteer_system`$$
+CREATE
+DEFINER=`root`@`localhost`
+TRIGGER `volunteer_system`.`update_activity_applications_count_after_delete`
+AFTER DELETE ON `volunteer_system`.`activity_applications`
+FOR EACH ROW
+BEGIN
+  -- This trigger can be used in the future if we add a current_participants column
+  -- to the activities table for more efficient counting
+END$$
+
+USE `volunteer_system`$$
+CREATE
+DEFINER=`root`@`localhost`
+TRIGGER `volunteer_system`.`update_activity_applications_count_after_insert`
+AFTER INSERT ON `volunteer_system`.`activity_applications`
+FOR EACH ROW
+BEGIN
+  -- This trigger can be used in the future if we add a current_participants column
+  -- to the activities table for more efficient counting
 END$$
 
 USE `volunteer_system`$$
