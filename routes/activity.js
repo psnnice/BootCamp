@@ -471,4 +471,125 @@ router.post('/:activityId/applicants/:applicantId/approve', protect, authorize('
  */
 router.post('/:activityId/applicants/:applicantId/reject', protect, authorize('STAFF', 'ADMIN'), applicantController.rejectApplicant);
 
+// ไฟล์ - routes/activity.js
+// เพิ่มเส้นทาง API สำหรับการสมัครกิจกรรม
+
+/**
+ * @swagger
+ * /api/activities/{id}/apply:
+ *   post:
+ *     summary: สมัครเข้าร่วมกิจกรรม
+ *     tags: [Activities]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: รหัสกิจกรรม
+ *     responses:
+ *       201:
+ *         description: สมัครกิจกรรมสำเร็จ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: สมัครกิจกรรมสำเร็จ กรุณารอการอนุมัติ
+ *       400:
+ *         description: ไม่สามารถสมัครได้ (มีการสมัครแล้ว, กิจกรรมเต็ม, ฯลฯ)
+ *       401:
+ *         description: ไม่ได้เข้าสู่ระบบ
+ *       404:
+ *         description: ไม่พบกิจกรรม
+ */
+router.post('/:id/apply', protect, activityController.applyForActivity);
+
+/**
+ * @swagger
+ * /api/activities/{id}/cancel:
+ *   delete:
+ *     summary: ยกเลิกการสมัครกิจกรรม
+ *     tags: [Activities]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: รหัสกิจกรรม
+ *     responses:
+ *       200:
+ *         description: ยกเลิกการสมัครสำเร็จ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: ยกเลิกการสมัครสำเร็จ
+ *       400:
+ *         description: ไม่สามารถยกเลิกได้ (เช่น กิจกรรมเริ่มไปแล้ว)
+ *       401:
+ *         description: ไม่ได้เข้าสู่ระบบ
+ *       404:
+ *         description: ไม่พบการสมัคร
+ */
+router.delete('/:id/apply', protect, activityController.cancelApplication);
+
+/**
+ * @swagger
+ * /api/activities/{id}/toggle:
+ *   post:
+ *     summary: สลับสถานะการสมัคร (สมัครหรือยกเลิก)
+ *     tags: [Activities]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: รหัสกิจกรรม
+ *     responses:
+ *       200:
+ *         description: ดำเนินการสำเร็จ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: สมัครกิจกรรมสำเร็จ หรือ ยกเลิกการสมัครสำเร็จ
+ *                 isRegistered:
+ *                   type: boolean
+ *                   example: true
+ *       400:
+ *         description: ไม่สามารถดำเนินการได้
+ *       401:
+ *         description: ไม่ได้เข้าสู่ระบบ
+ *       404:
+ *         description: ไม่พบกิจกรรม
+ */
+router.post('/:id/toggle', protect, activityController.toggleRegistration);
+
+
 module.exports = router;
