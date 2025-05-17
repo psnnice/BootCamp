@@ -21,7 +21,7 @@ exports.getAllUsers = async (req, res, next) => {
     
     // ดึงข้อมูลผู้ใช้ทั้งหมดพร้อมชื่อคณะและสาขาแบบมี limit
     const [users] = await pool.query(`
-      SELECT u.id, u.student_id, u.email, u.full_name, u.role, u.is_banned, u.created_at,
+      SELECT u.id, u.student_id, u.email, u.firstname,u.lastname, u.role, u.is_banned, u.created_at,
              u.faculty_id, f.name as faculty_name, u.major_id, m.name as major_name, u.profile_image
       FROM users u
       LEFT JOIN faculties f ON u.faculty_id = f.id
@@ -44,7 +44,8 @@ exports.getAllUsers = async (req, res, next) => {
       id: user.id,
       student_id: user.student_id,
       email: user.email,
-      full_name: user.full_name,
+      firstname: user.firstname,
+      lastname: user.lastname,
       role: user.role,
       is_banned: user.is_banned,
       faculty_name: user.faculty_name,
@@ -87,7 +88,7 @@ exports.getUserById = async (req, res, next) => {
     
     // ดึงข้อมูลผู้ใช้ตาม ID พร้อมชื่อคณะและสาขา
     const [users] = await pool.query(`
-      SELECT u.id, u.student_id, u.email, u.full_name, u.role, u.is_banned, u.created_at,
+      SELECT u.id, u.student_id, u.email, u.firstname,u.lastname, u.role, u.is_banned, u.created_at,
              u.faculty_id, f.name as faculty_name, u.major_id, m.name as major_name, u.profile_image
       FROM users u
       LEFT JOIN faculties f ON u.faculty_id = f.id
@@ -109,7 +110,8 @@ exports.getUserById = async (req, res, next) => {
       id: users[0].id,
       student_id: users[0].student_id,
       email: users[0].email,
-      full_name: users[0].full_name,
+      firstname: users[0].firstname,
+      lastname: users[0].lastname,
       role: users[0].role,
       is_banned: users[0].is_banned,
       faculty_name: users[0].faculty_name,

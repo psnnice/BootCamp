@@ -27,9 +27,12 @@ const router = express.Router();
  *         student_id:
  *           type: string
  *           description: รหัสนิสิต
- *         full_name:
+ *         firstname:
  *           type: string
- *           description: ชื่อ-นามสกุล
+ *           description: ชื่อ
+ *         lastname:
+ *           type: string
+ *           description: นามสกุล
  *         role:
  *           type: string
  *           description: บทบาทของผู้ใช้งาน
@@ -53,7 +56,8 @@ const router = express.Router();
  *       example:
  *         id: 1
  *         student_id: "12345678"
- *         full_name: "ชื่อ นามสกุล"
+ *         firstname: "John"
+ *         lastname: "Doe"
  *         role: "STUDENT"
  *         is_banned: false
  *         faculty_name: "คณะเทคโนโลยีสารสนเทศและการสื่อสาร"

@@ -27,7 +27,8 @@ const router = express.Router();
  *             required:
  *               - email
  *               - password
- *               - full_name
+ *               - firstname
+ *               - lastname
  *             properties:
  *               student_id:
  *                 type: string
@@ -40,9 +41,12 @@ const router = express.Router();
  *                 type: string
  *                 format: password
  *                 description: รหัสผ่าน
- *               full_name:
+ *               firstname:
  *                 type: string
- *                 description: ชื่อ-นามสกุล
+ *                 description: ชื่อ
+ *               lastname:
+ *                 type: string
+ *                 description: นามสกุล
  *               faculty_id:
  *                 type: integer
  *                 description: รหัสคณะ ต้องมีอยู่ในตาราง faculties (ไม่บังคับ)
@@ -53,7 +57,8 @@ const router = express.Router();
  *               student_id: "12345678"
  *               email: "student@example.com"
  *               password: "password123"
- *               full_name: "ชื่อ นามสกุล"
+ *               firstname: "ชื่อ"
+ *               lastname: "นามสกุล"
  *               faculty_id: 2
  *               major_id: 7
  *     responses:
@@ -83,7 +88,9 @@ const router = express.Router();
  *                           nullable: true
  *                         email:
  *                           type: string
- *                         full_name:
+ *                         firstname:
+ *                           type: string
+ *                         lastname:
  *                           type: string
  *                         role:
  *                           type: string
@@ -170,7 +177,9 @@ router.post('/register', register);
  *                           nullable: true
  *                         email:
  *                           type: string
- *                         full_name:
+ *                         firstname:
+ *                           type: string
+ *                         lastname:
  *                           type: string
  *                         role:
  *                           type: string
@@ -246,7 +255,9 @@ router.post('/login', login);
  *                     student_id:
  *                       type: string
  *                       nullable: true
- *                     full_name:
+ *                     firstname:
+ *                       type: string
+ *                     lastname:
  *                       type: string
  *                     role:
  *                       type: string

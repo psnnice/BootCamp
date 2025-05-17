@@ -1,3 +1,4 @@
+// controllers/authController.js (แก้ไข)
 const bcrypt = require('bcryptjs');
 const { pool } = require('../config/db');
 const { generateToken, generateTokenWithoutStorage } = require('../middleware/auth');
@@ -5,21 +6,22 @@ const { generateToken, generateTokenWithoutStorage } = require('../middleware/au
 // ลงทะเบียนผู้ใช้งานใหม่
 exports.register = async (req, res, next) => {
   try {
-    const { student_id, email, password, full_name, faculty_id, major_id } = req.body;
+    const { student_id, email, password, firstname, lastname, faculty_id, major_id } = req.body;
 
     // ตรวจสอบข้อมูลที่จำเป็น
-    if (!email || !password || !full_name) {
+    if (!email || !password || !firstname || !lastname) {
       return res.status(400).json({
         success: false,
-        message: 'กรุณากรอกอีเมล รหัสผ่าน และชื่อ-นามสกุล'
+        message: 'กรุณากรอกอีเมล รหัสผ่าน ชื่อ และนามสกุล'
       });
     }
 
     // ตรวจสอบประเภทข้อมูล
-    if (typeof email !== 'string' || typeof password !== 'string' || typeof full_name !== 'string') {
+    if (typeof email !== 'string' || typeof password !== 'string' || 
+        typeof firstname !== 'string' || typeof lastname !== 'string') {
       return res.status(400).json({
         success: false,
-        message: 'อีเมล รหัสผ่าน และชื่อ-นามสกุลต้องเป็นสตริง'
+        message: 'อีเมล รหัสผ่าน ชื่อ และนามสกุลต้องเป็นสตริง'
       });
     }
 
@@ -117,16 +119,18 @@ exports.register = async (req, res, next) => {
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
 
+
+
     // บันทึกข้อมูลผู้ใช้งานใหม่
     const [result] = await pool.query(
-      'INSERT INTO users (student_id, email, password_hash, full_name, role, faculty_id, major_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [student_id || null, email, password_hash, full_name, 'STUDENT', faculty_id || null, major_id || null]
+      'INSERT INTO users (student_id, email, password_hash, firstname, lastname, role, faculty_id, major_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [student_id || null, email, password_hash, firstname, lastname, 'STUDENT', faculty_id || null, major_id || null]
     );
 
     if (result.affectedRows === 1) {
       // ดึงข้อมูลผู้ใช้งานที่เพิ่งสร้าง (ไม่รวมรหัสผ่าน)
       const [newUser] = await pool.query(
-        'SELECT id, student_id, email, full_name, role, created_at, faculty_id, major_id FROM users WHERE id = ?',
+        'SELECT id, student_id, email, firstname, lastname, role, created_at, faculty_id, major_id FROM users WHERE id = ?',
         [result.insertId]
       );
 
@@ -224,7 +228,8 @@ exports.login = async (req, res, next) => {
       id: user.id,
       student_id: user.student_id,
       email: user.email,
-      full_name: user.full_name,
+      firstname: user.firstname,
+      lastname: user.lastname,
       role: user.role,
       faculty_id: user.faculty_id,
       major_id: user.major_id,
@@ -251,7 +256,7 @@ exports.getMe = async (req, res, next) => {
   try {
     // ดึงข้อมูลผู้ใช้งานจากฐานข้อมูลอีกครั้ง (เพื่อให้ได้ข้อมูลล่าสุด)
     const [user] = await pool.query(
-      `SELECT u.id, u.student_id, u.full_name, u.role, u.created_at, 
+      `SELECT u.id, u.student_id, u.firstname,u.lastname, u.firstname, u.lastname, u.role, u.created_at, 
       u.faculty_id, f.name as faculty_name, u.major_id, m.name as major_name, u.profile_image
       FROM users u
       LEFT JOIN faculties f ON u.faculty_id = f.id

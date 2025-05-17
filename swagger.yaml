@@ -27,9 +27,12 @@ components:
         student_id:
           type: string
           description: รหัสนิสิต
-        full_name:
+        firstname:
           type: string
-          description: ชื่อ-นามสกุล
+          description: ชื่อ
+        lastname:
+          type: string
+          description: นามสกุล
         role:
           type: string
           description: บทบาทของผู้ใช้งาน
@@ -53,7 +56,8 @@ components:
       example:
         id: 1
         student_id: "12345678"
-        full_name: "ชื่อ นามสกุล"
+        firstname: "ชื่อ"
+        lastname: "นามสกุล"
         role: "STUDENT"
         is_banned: false
         faculty_name: "คณะเทคโนโลยีสารสนเทศและการสื่อสาร"
@@ -103,7 +107,8 @@ paths:
               required:
                 - student_id
                 - password
-                - full_name
+                - firstname
+                - lastname
               properties:
                 student_id:
                   type: string
@@ -112,9 +117,12 @@ paths:
                   type: string
                   format: password
                   description: รหัสผ่าน
-                full_name:
+                firstname:
                   type: string
-                  description: ชื่อ-นามสกุล
+                  description: ชื่อ
+                lastname:
+                  type: string
+                  description: นามสกุล
                 faculty_id:
                   type: integer
                   description: รหัสคณะ
@@ -124,7 +132,8 @@ paths:
               example:
                 student_id: "12345678"
                 password: "password123"
-                full_name: "ชื่อ นามสกุล"
+                firstname: "ชื่อ"
+                lastname: "นามสกุล"
                 faculty_id: 2
                 major_id: 7
       responses:
@@ -247,7 +256,9 @@ paths:
                         type: integer
                       student_id:
                         type: string
-                      full_name:
+                      firstname:
+                        type: string
+                      lastname:
                         type: string
                       role:
                         type: string
@@ -380,7 +391,9 @@ paths:
                         type: integer
                       student_id:
                         type: string
-                      full_name:
+                      firstname:
+                        type: string
+                      lastname:
                         type: string
                       role:
                         type: string

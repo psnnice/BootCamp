@@ -34,7 +34,8 @@ exports.getApplicants = async (req, res, next) => {
         aa.applied_at,
         u.id as user_id, 
         u.student_id, 
-        u.full_name,
+        u.firstname,
+        u.lastname,
         u.email,
         f.name as faculty_name,
         m.name as major_name

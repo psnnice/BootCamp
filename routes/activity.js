@@ -331,7 +331,9 @@ router.post('/:id/approve', protect, authorize('ADMIN'), activityController.appr
  *                         type: integer
  *                       student_id:
  *                         type: string
- *                       full_name:
+ *                       firstname:
+ *                         type: string
+ *                       lastname:
  *                         type: string
  */
 router.get('/:id/applicants', protect, authorize('STAFF', 'ADMIN'), applicantController.getApplicants);
