@@ -25,8 +25,10 @@ const router = express.Router();
  *               - title
  *               - description
  *               - category_id
- *               - start_date
- *               - end_date
+ *               - start_time
+ *               - end_time
+ *               - max_participants
+ *               - category
  *             properties:
  *               title:
  *                 type: string
@@ -37,14 +39,21 @@ const router = express.Router();
  *               category_id:
  *                 type: integer
  *                 example: 1
- *               start_date:
+ *               category:
  *                 type: string
- *                 format: date
- *                 example: 2025-06-01
- *               end_date:
+ *                 enum: [อาสา, ช่วยงาน, อบรม]
+ *                 example: อาสา
+ *               start_time:
  *                 type: string
- *                 format: date
- *                 example: 2025-06-03
+ *                 format: date-time
+ *                 example: 2025-06-01T08:00:00Z
+ *               end_time:
+ *                 type: string
+ *                 format: date-time
+ *                 example: 2025-06-03T17:00:00Z
+ *               max_participants:
+ *                 type: integer
+ *                 example: 50
  *     responses:
  *       201:
  *         description: สร้างกิจกรรมสำเร็จ
@@ -53,12 +62,14 @@ const router = express.Router();
  *             schema:
  *               type: object
  *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
  *                 message:
  *                   type: string
  *                   example: สร้างกิจกรรมสำเร็จ
- *                 activity_id:
- *                   type: integer
- *                   example: 10
+ *                 data:
+ *                   type: object
  *       403:
  *         description: ไม่มีสิทธิ์ในการสร้างกิจกรรม
  *         content:
@@ -66,6 +77,9 @@ const router = express.Router();
  *             schema:
  *               type: object
  *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
  *                 message:
  *                   type: string
  *                   example: คุณไม่มีสิทธิ์สร้างกิจกรรม
@@ -235,15 +249,6 @@ router.get('/', protect, activityController.getAllActivities);
  *                 type: string
  *                 enum: [อนุมัติ, ปฏิเสธ, เสร็จสิ้น, ยกเลิก]
  *                 description: สถานะกิจกรรม (เฉพาะ admin)
- *               location:
- *                 type: string
- *                 description: สถานที่จัดกิจกรรม
- *               hours:
- *                 type: number
- *                 description: จำนวนชั่วโมงกิจกรรม
- *               points:
- *                 type: number
- *                 description: คะแนนที่จะได้รับ
  *               category_id:
  *                 type: integer
  *                 description: รหัสหมวดหมู่กิจกรรม

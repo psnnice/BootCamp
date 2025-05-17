@@ -1,34 +1,5 @@
 // controllers/activityController.js
 const { pool } = require('../config/db');
-/**
- * @desc    post activities
- * @route   POST /api/activities
- * @access  Public (with filtering by status)
- */
-exports.createActivity = async (req, res) => {
-  try {
-    const { role } = req.user; // สมมุติว่ามี middleware auth ใส่ req.user มาแล้ว
-
-    if (role !== 'admin' && role !== 'staff') {
-      return res.status(403).json({ message: 'คุณไม่มีสิทธิ์สร้างกิจกรรม' });
-    }
-
-    const { title, description, category_id, start_date, end_date } = req.body;
-
-    const [result] = await pool.query(
-      `INSERT INTO activities (title, description, category_id, start_time, end_time)
-       VALUES (?, ?, ?, ?, ?)`,
-      [title, description, category_id, start_date, end_date]
-    );
-
-    return res.status(201).json({ message: 'สร้างกิจกรรมสำเร็จ', activity_id: result.insertId });
-  } catch (error) {
-    console.error('Error creating activity:', error);
-    return res.status(500).json({ message: 'เกิดข้อผิดพลาดในเซิร์ฟเวอร์' });
-  }
-};
-
-
 
 /**
  * @desc    Get all activities
@@ -514,9 +485,6 @@ exports.createActivity = async (req, res, next) => {
       start_time, 
       end_time, 
       max_participants,
-      location,
-      hours,
-      points,
       category_id
     } = req.body;
     
@@ -549,13 +517,10 @@ exports.createActivity = async (req, res, next) => {
         end_time, 
         max_participants, 
         status, 
-        created_by, 
-        location, 
-        hours, 
-        points, 
+        created_by,
         category_id,
         created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [
         title, 
         description, 
@@ -565,9 +530,6 @@ exports.createActivity = async (req, res, next) => {
         max_participants, 
         status, 
         req.user.id,
-        location || null,
-        hours || null,
-        points || null,
         category_id || null
       ]
     );
@@ -652,9 +614,6 @@ exports.updateActivity = async (req, res, next) => {
       end_time, 
       max_participants,
       status,
-      location,
-      hours,
-      points,
       category_id
     } = req.body;
     
@@ -696,21 +655,6 @@ exports.updateActivity = async (req, res, next) => {
     if (status !== undefined && req.user.role === 'ADMIN') {
       updateFields.push('status = ?');
       updateValues.push(status);
-    }
-    
-    if (location !== undefined) {
-      updateFields.push('location = ?');
-      updateValues.push(location);
-    }
-    
-    if (hours !== undefined) {
-      updateFields.push('hours = ?');
-      updateValues.push(hours);
-    }
-    
-    if (points !== undefined) {
-      updateFields.push('points = ?');
-      updateValues.push(points);
     }
     
     if (category_id !== undefined) {
@@ -881,10 +825,6 @@ exports.updateActivityStatus = async (req, res, next) => {
       const endTime = new Date(activity.end_time);
       const durationHours = (endTime - startTime) / (1000 * 60 * 60);
       
-      // Get configured hours and points, or calculate if not specified
-      const hours = activity.hours || durationHours;
-      const points = activity.points || durationHours; // Default: 1 hour = 1 point
-      
       // Only process if there are approved participants
       if (approvedParticipants.length > 0) {
         console.log(`Processing ${approvedParticipants.length} participants for completed activity ${id}`);
@@ -900,26 +840,11 @@ exports.updateActivityStatus = async (req, res, next) => {
              points = VALUES(points), 
              verified_by = VALUES(verified_by), 
              verified_at = NOW()`,
-            [id, participant.user_id, hours, points, req.user.id]
+            [id, participant.user_id, durationHours, durationHours, req.user.id]
           );
           
-          console.log(`Added participation record for user ${participant.user_id}: ${hours} hours, ${points} points`);
+          console.log(`Added participation record for user ${participant.user_id}: ${durationHours} hours, ${durationHours} points`);
         }
-      }
-      
-      // Add participation records for each approved participant
-      for (const participant of approvedParticipants) {
-        await pool.query(
-          `INSERT INTO activity_participation 
-           (activity_id, user_id, hours, points, verified_by, verified_at) 
-           VALUES (?, ?, ?, ?, ?, NOW())
-           ON DUPLICATE KEY UPDATE 
-           hours = VALUES(hours), 
-           points = VALUES(points), 
-           verified_by = VALUES(verified_by), 
-           verified_at = NOW()`,
-          [id, participant.user_id, hours, points, req.user.id]
-        );
       }
     }
     
