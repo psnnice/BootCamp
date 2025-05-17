@@ -25,8 +25,8 @@ app.use((req, res, next) => {
 
 
 app.use(cors({
-  origin: "*",
-  Credential:true
+  origin: "http://localhost:5173",  // For development, you can use "*" (any origin)
+  credentials: true
 }));
 
 
