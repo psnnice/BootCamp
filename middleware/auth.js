@@ -27,21 +27,16 @@ exports.generateToken = async (userId) => {
       throw new Error('ผู้ใช้ถูกระงับการใช้งาน');
     }
 
-    // ทำให้ token เดิม expire (ถ้ามี)
+    // ทำให้ token เดิม expire (ถ้ามี) - Single Active Token Policy
     await pool.query(
       'UPDATE auth_tokens SET is_invalid = 1, expires_at = CURRENT_TIMESTAMP WHERE user_id = ? AND is_invalid = 0',
       [userId]
     );
 
-    // อัปเดตหรือเพิ่ม token ใหม่
-    const [result] = await pool.query(
+    // เพิ่ม token ใหม่
+    await pool.query(
       `INSERT INTO auth_tokens (user_id, token, created_at, expires_at, is_invalid)
-       VALUES (?, ?, CURRENT_TIMESTAMP, ?, 0)
-       ON DUPLICATE KEY UPDATE
-       token = VALUES(token),
-       created_at = CURRENT_TIMESTAMP,
-       expires_at = VALUES(expires_at),
-       is_invalid = 0`,
+       VALUES (?, ?, CURRENT_TIMESTAMP, ?, 0)`,
       [userId, token, expiresAt]
     );
 
@@ -97,8 +92,22 @@ exports.protect = async (req, res, next) => {
     );
 
     if (tokenRows.length === 0) {
-      // ถ้า token ไม่อยู่ใน auth_tokens อนุญาตให้ผ่านถ้า JWT valid และผู้ใช้มีอยู่ในระบบ
-      // นี่คือกรณี token จาก register
+      // ถ้า token ไม่อยู่ใน auth_tokens หรือไม่ valid, ตรวจสอบว่าเป็น token จาก register
+      // (token จาก register ไม่ถูกเก็บในฐานข้อมูล)
+      const [tokenInvalid] = await pool.query(
+        'SELECT * FROM auth_tokens WHERE token = ? AND is_invalid = 1',
+        [token]
+      );
+      
+      if (tokenInvalid.length > 0) {
+        return res.status(401).json({
+          success: false,
+          message: 'Session หมดอายุ กรุณาเข้าสู่ระบบใหม่อีกครั้ง'
+        });
+      }
+      
+      // ถ้า token ไม่อยู่ใน auth_tokens เลย (น่าจะเป็น token จาก register)
+      // อนุญาตให้ผ่านถ้า JWT valid และผู้ใช้มีอยู่ในระบบ
       req.user = userRows[0];
       return next();
     }
@@ -133,4 +142,30 @@ exports.authorize = (...roles) => {
     }
     next();
   };
+};
+
+// ฟังก์ชันสำหรับยกเลิก token
+exports.invalidateToken = async (token) => {
+  try {
+    const [result] = await pool.query(
+      'UPDATE auth_tokens SET is_invalid = 1, expires_at = CURRENT_TIMESTAMP WHERE token = ?',
+      [token]
+    );
+    return result.affectedRows > 0;
+  } catch (err) {
+    throw new Error('ไม่สามารถยกเลิก token ได้: ' + err.message);
+  }
+};
+
+// ฟังก์ชันสำหรับยกเลิก token ทั้งหมดของผู้ใช้
+exports.invalidateAllUserTokens = async (userId) => {
+  try {
+    const [result] = await pool.query(
+      'UPDATE auth_tokens SET is_invalid = 1, expires_at = CURRENT_TIMESTAMP WHERE user_id = ?',
+      [userId]
+    );
+    return result.affectedRows > 0;
+  } catch (err) {
+    throw new Error('ไม่สามารถยกเลิก token ของผู้ใช้ได้: ' + err.message);
+  }
 };

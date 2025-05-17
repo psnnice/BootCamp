@@ -1,5 +1,5 @@
 const express = require('express');
-const { register, login, getMe } = require('../controllers/authController');
+const { register, login, getMe, logout, logoutAll } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 
 const router = express.Router();
@@ -92,6 +92,8 @@ const router = express.Router();
  *                           type: string
  *                         lastname:
  *                           type: string
+ *                         full_name:
+ *                           type: string
  *                         role:
  *                           type: string
  *                         created_at:
@@ -181,6 +183,8 @@ router.post('/register', register);
  *                           type: string
  *                         lastname:
  *                           type: string
+ *                         full_name:
+ *                           type: string
  *                         role:
  *                           type: string
  *                         faculty_id:
@@ -229,6 +233,79 @@ router.post('/login', login);
 
 /**
  * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     summary: ออกจากระบบ
+ *     tags: [Authentication]
+ *     description: ออกจากระบบโดยการทำให้ token ที่ใช้อยู่ไม่สามารถใช้งานได้
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: ออกจากระบบสำเร็จ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: ออกจากระบบสำเร็จ
+ *       400:
+ *         description: ไม่พบ token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: ไม่พบ token สำหรับออกจากระบบ
+ */
+router.post('/logout', logout);
+
+/**
+ * @swagger
+ * /api/auth/logout-all:
+ *   post:
+ *     summary: ออกจากระบบทุกอุปกรณ์
+ *     tags: [Authentication]
+ *     description: ออกจากระบบทุกอุปกรณ์โดยการทำให้ token ทั้งหมดของผู้ใช้ไม่สามารถใช้งานได้
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: ออกจากระบบทุกอุปกรณ์สำเร็จ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: ออกจากระบบทุกอุปกรณ์สำเร็จ
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     sessionsEnded:
+ *                       type: integer
+ *                       example: 3
+ *       401:
+ *         description: ไม่มีสิทธิ์เข้าถึงหรือ token ไม่ถูกต้อง
+ */
+router.post('/logout-all', protect, logoutAll);
+
+/**
+ * @swagger
  * /api/auth/me:
  *   get:
  *     summary: ดึงข้อมูลผู้ใช้ปัจจุบัน
@@ -258,6 +335,8 @@ router.post('/login', login);
  *                     firstname:
  *                       type: string
  *                     lastname:
+ *                       type: string
+ *                     full_name:
  *                       type: string
  *                     role:
  *                       type: string

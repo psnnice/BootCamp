@@ -1,4 +1,4 @@
-// controllers/authController.js (แก้ไข)
+// controllers/authController.js (แก้ไขใหม่)
 const bcrypt = require('bcryptjs');
 const { pool } = require('../config/db');
 const { generateToken, generateTokenWithoutStorage } = require('../middleware/auth');
@@ -119,11 +119,9 @@ exports.register = async (req, res, next) => {
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
 
-
-
-    // บันทึกข้อมูลผู้ใช้งานใหม่
+    // บันทึกข้อมูลผู้ใช้งานใหม่ (แก้ไขบัคในคำสั่ง SQL Insert)
     const [result] = await pool.query(
-      'INSERT INTO users (student_id, email, password_hash, firstname, lastname, role, faculty_id, major_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO users (student_id, email, password_hash, firstname, lastname, role, faculty_id, major_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [student_id || null, email, password_hash, firstname, lastname, 'STUDENT', faculty_id || null, major_id || null]
     );
 
@@ -215,7 +213,7 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    // สร้างและเก็บ Token
+    // สร้างและเก็บ Token - this will invalidate previous tokens
     const token = await generateToken(user.id);
     
     console.log('LOGIN SUCCESS:', email);
@@ -256,7 +254,7 @@ exports.getMe = async (req, res, next) => {
   try {
     // ดึงข้อมูลผู้ใช้งานจากฐานข้อมูลอีกครั้ง (เพื่อให้ได้ข้อมูลล่าสุด)
     const [user] = await pool.query(
-      `SELECT u.id, u.student_id, u.firstname,u.lastname, u.firstname, u.lastname, u.role, u.created_at, 
+      `SELECT u.id, u.student_id, u.firstname, u.lastname, u.role, u.created_at, 
       u.faculty_id, f.name as faculty_name, u.major_id, m.name as major_name, u.profile_image
       FROM users u
       LEFT JOIN faculties f ON u.faculty_id = f.id
@@ -291,6 +289,67 @@ exports.getMe = async (req, res, next) => {
       data: userWithStats
     });
   } catch (err) {
+    next(err);
+  }
+};
+
+exports.logout = async (req, res, next) => {
+  try {
+    // ตรวจสอบว่ามี token หรือไม่
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'ไม่พบ token สำหรับออกจากระบบ'
+      });
+    }
+
+    // ทำให้ token ไม่สามารถใช้งานได้
+    const [result] = await pool.query(
+      'UPDATE auth_tokens SET is_invalid = 1 WHERE token = ?',
+      [token]
+    );
+
+    if (result.affectedRows === 0) {
+      // ถ้าไม่พบ token ในฐานข้อมูล อาจจะเป็น token ที่หมดอายุแล้วหรือไม่ได้บันทึกไว้
+      return res.status(400).json({
+        success: false,
+        message: 'ไม่พบ token ในระบบ'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'ออกจากระบบสำเร็จ'
+    });
+  } catch (err) {
+    console.error('LOGOUT ERROR:', err);
+    next(err);
+  }
+};
+
+// เพิ่มฟังก์ชันสำหรับออกจากระบบทุกอุปกรณ์
+exports.logoutAll = async (req, res, next) => {
+  try {
+    // ทำให้ token ทั้งหมดของผู้ใช้ปัจจุบันไม่สามารถใช้งานได้
+    const [result] = await pool.query(
+      'UPDATE auth_tokens SET is_invalid = 1 WHERE user_id = ?',
+      [req.user.id]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'ออกจากระบบทุกอุปกรณ์สำเร็จ',
+      data: {
+        sessionsEnded: result.affectedRows
+      }
+    });
+  } catch (err) {
+    console.error('LOGOUT ALL ERROR:', err);
     next(err);
   }
 };

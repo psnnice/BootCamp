@@ -8,10 +8,10 @@ exports.getAllActivities = async (req, res, next) => {
     const { page = 1, limit = 10, category, status } = req.query;
     const offset = (page - 1) * limit;
     
-    // สร้าง query string พื้นฐาน - แก้ไขในส่วนนี้
+    // สร้าง query string พื้นฐาน - แก้ไขในส่วนนี้ เปลี่ยนจาก u.full_name เป็น CONCAT(u.firstname, ' ', u.lastname)
     let query = `
       SELECT a.*, 
-             u.full_name as creator_name, 
+             CONCAT(u.firstname, ' ', u.lastname) as creator_name, 
              c.name as category_name
       FROM activities a
       LEFT JOIN users u ON a.created_by = u.id
@@ -105,10 +105,10 @@ exports.getActivityById = async (req, res, next) => {
   try {
     const { id } = req.params;
     
-    // ดึงข้อมูลกิจกรรม
+    
     const [activities] = await pool.query(`
       SELECT a.*, 
-             u.full_name as creator_name, 
+             CONCAT(u.firstname, ' ', u.lastname) as creator_name, 
              c.name as category_name
       FROM activities a
       LEFT JOIN users u ON a.created_by = u.id
@@ -155,13 +155,7 @@ exports.getActivityById = async (req, res, next) => {
 };
 
 
-// controllers/activityController.js (เพิ่มเติม)
-
-/**
- * อัปเดตสถานะกิจกรรม (เสร็จสิ้น/ยกเลิก)
- * @route PUT /api/activities/:id/status
- * @access Private (Staff, Admin)
- */
+// อัปเดตสถานะกิจกรรม (เสร็จสิ้น/ยกเลิก)
 exports.updateActivityStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -250,11 +244,7 @@ exports.updateActivityStatus = async (req, res, next) => {
 };
 
 
-/**
- * อนุมัติกิจกรรมโดย Admin
- * @route POST /api/activities/:id/approve
- * @access Private (Admin only)
- */
+// อนุมัติกิจกรรมโดย Admin
 exports.approveActivity = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -305,11 +295,7 @@ exports.approveActivity = async (req, res, next) => {
   }
 };
 
-/**
- * แก้ไขข้อมูลกิจกรรม
- * @route PUT /api/activities/:id
- * @access Private (Staff, Admin)
- */
+// แก้ไขข้อมูลกิจกรรม
 exports.updateActivity = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -335,8 +321,109 @@ exports.updateActivity = async (req, res, next) => {
       });
     }
     
-    // โค้ดสำหรับแก้ไขข้อมูลกิจกรรม...
+    // รับข้อมูลที่ต้องการแก้ไขจาก request
+    const { 
+      title, 
+      description, 
+      category, 
+      start_time, 
+      end_time, 
+      max_participants,
+      location,
+      cover_image,
+      category_id
+    } = req.body;
+    
+    // สร้าง query และ parameters สำหรับอัปเดต
+    let updateFields = [];
+    let updateParams = [];
+    
+    if (title) {
+      updateFields.push('title = ?');
+      updateParams.push(title);
+    }
+    
+    if (description) {
+      updateFields.push('description = ?');
+      updateParams.push(description);
+    }
+    
+    if (category) {
+      updateFields.push('category = ?');
+      updateParams.push(category);
+    }
+    
+    if (start_time) {
+      updateFields.push('start_time = ?');
+      updateParams.push(start_time);
+    }
+    
+    if (end_time) {
+      updateFields.push('end_time = ?');
+      updateParams.push(end_time);
+    }
+    
+    if (max_participants) {
+      updateFields.push('max_participants = ?');
+      updateParams.push(max_participants);
+    }
+    
+    if (location) {
+      updateFields.push('location = ?');
+      updateParams.push(location);
+    }
+    
+    if (cover_image) {
+      updateFields.push('cover_image = ?');
+      updateParams.push(cover_image);
+    }
+    
+    if (category_id) {
+      updateFields.push('category_id = ?');
+      updateParams.push(category_id);
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'ไม่มีข้อมูลที่ต้องการแก้ไข'
+      });
+    }
+    
+    // สร้าง query string
+    const query = `UPDATE activities SET ${updateFields.join(', ')} WHERE id = ?`;
+    
+    // เพิ่ม id เข้าไปใน parameters
+    updateParams.push(id);
+    
+    // อัปเดตข้อมูล
+    const [result] = await pool.query(query, updateParams);
+    
+    if (result.affectedRows === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'ไม่สามารถแก้ไขข้อมูลกิจกรรมได้'
+      });
+    }
+    
+    // ดึงข้อมูลกิจกรรมที่อัปเดตแล้ว
+    const [updatedActivity] = await pool.query(`
+      SELECT a.*, 
+             CONCAT(u.firstname, ' ', u.lastname) as creator_name, 
+             c.name as category_name
+      FROM activities a
+      LEFT JOIN users u ON a.created_by = u.id
+      LEFT JOIN activity_categories c ON a.category_id = c.id
+      WHERE a.id = ?
+    `, [id]);
+    
+    res.status(200).json({
+      success: true,
+      message: 'แก้ไขข้อมูลกิจกรรมสำเร็จ',
+      data: updatedActivity[0]
+    });
   } catch (err) {
+    console.error('Error in updateActivity:', err);
     next(err);
   }
 };

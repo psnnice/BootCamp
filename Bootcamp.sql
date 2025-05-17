@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS `volunteer_system`.`users` (
     REFERENCES `volunteer_system`.`majors` (`id`)
     ON DELETE SET NULL)
 ENGINE = InnoDB
-AUTO_INCREMENT = 3
+AUTO_INCREMENT = 4
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
@@ -208,12 +208,15 @@ CREATE TABLE IF NOT EXISTS `volunteer_system`.`auth_tokens` (
   PRIMARY KEY (`id`),
   UNIQUE INDEX `token` (`token` ASC) VISIBLE,
   INDEX `user_id` (`user_id` ASC) VISIBLE,
+  INDEX `idx_auth_tokens_user_id` (`user_id` ASC) VISIBLE,
+  INDEX `idx_auth_tokens_token` (`token` ASC) VISIBLE,
+  INDEX `idx_auth_tokens_validity` (`is_invalid` ASC, `expires_at` ASC) VISIBLE,
   CONSTRAINT `auth_tokens_ibfk_1`
     FOREIGN KEY (`user_id`)
     REFERENCES `volunteer_system`.`users` (`id`)
     ON DELETE CASCADE)
 ENGINE = InnoDB
-AUTO_INCREMENT = 5
+AUTO_INCREMENT = 20
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
@@ -266,6 +269,7 @@ CREATE TABLE IF NOT EXISTS `volunteer_system`.`user_roles` (
     REFERENCES `volunteer_system`.`users` (`id`)
     ON DELETE SET NULL)
 ENGINE = InnoDB
+AUTO_INCREMENT = 2
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
@@ -275,22 +279,102 @@ DELIMITER $$
 USE `volunteer_system`$$
 CREATE
 DEFINER=`root`@`localhost`
-TRIGGER `volunteer_system`.`update_fullname_before_insert`
+TRIGGER `volunteer_system`.`check_email_format_before_insert`
 BEFORE INSERT ON `volunteer_system`.`users`
 FOR EACH ROW
 BEGIN
-    SET NEW.full_name = CONCAT(NEW.firstname, ' ', NEW.lastname);
+    -- ตรวจสอบรูปแบบอีเมล
+    IF NEW.email IS NOT NULL AND NEW.email NOT REGEXP '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'รูปแบบอีเมลไม่ถูกต้อง';
+    END IF;
 END$$
 
 USE `volunteer_system`$$
 CREATE
 DEFINER=`root`@`localhost`
-TRIGGER `volunteer_system`.`update_fullname_before_update`
+TRIGGER `volunteer_system`.`check_email_format_before_update`
 BEFORE UPDATE ON `volunteer_system`.`users`
 FOR EACH ROW
 BEGIN
-    IF NEW.firstname != OLD.firstname OR NEW.lastname != OLD.lastname THEN
-        SET NEW.full_name = CONCAT(NEW.firstname, ' ', NEW.lastname);
+    -- ตรวจสอบรูปแบบอีเมลเมื่อมีการอัปเดต
+    IF NEW.email IS NOT NULL AND NEW.email != OLD.email AND NEW.email NOT REGEXP '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'รูปแบบอีเมลไม่ถูกต้อง';
+    END IF;
+END$$
+
+USE `volunteer_system`$$
+CREATE
+DEFINER=`root`@`localhost`
+TRIGGER `volunteer_system`.`log_user_role_change`
+AFTER UPDATE ON `volunteer_system`.`users`
+FOR EACH ROW
+BEGIN
+    -- บันทึกประวัติเมื่อมีการเปลี่ยนแปลงบทบาทผู้ใช้
+    IF OLD.role != NEW.role THEN
+        INSERT INTO `volunteer_system`.`user_roles` (user_id, role, granted_by)
+        VALUES (NEW.id, NEW.role, NULL);
+    END IF;
+END$$
+
+USE `volunteer_system`$$
+CREATE
+DEFINER=`root`@`localhost`
+TRIGGER `volunteer_system`.`validate_user_names_before_insert`
+BEFORE INSERT ON `volunteer_system`.`users`
+FOR EACH ROW
+BEGIN
+    -- ตรวจสอบว่า firstname และ lastname ไม่เป็นค่าว่าง
+    IF NEW.firstname IS NULL OR TRIM(NEW.firstname) = '' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'ชื่อต้องไม่เป็นค่าว่าง';
+    END IF;
+    
+    IF NEW.lastname IS NULL OR TRIM(NEW.lastname) = '' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'นามสกุลต้องไม่เป็นค่าว่าง';
+    END IF;
+    
+    -- ตรวจสอบความยาวของ firstname และ lastname
+    IF LENGTH(NEW.firstname) > 50 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'ชื่อต้องมีความยาวไม่เกิน 50 ตัวอักษร';
+    END IF;
+    
+    IF LENGTH(NEW.lastname) > 50 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'นามสกุลต้องมีความยาวไม่เกิน 50 ตัวอักษร';
+    END IF;
+END$$
+
+USE `volunteer_system`$$
+CREATE
+DEFINER=`root`@`localhost`
+TRIGGER `volunteer_system`.`validate_user_names_before_update`
+BEFORE UPDATE ON `volunteer_system`.`users`
+FOR EACH ROW
+BEGIN
+    -- ตรวจสอบว่า firstname และ lastname ไม่เป็นค่าว่าง
+    IF NEW.firstname IS NULL OR TRIM(NEW.firstname) = '' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'ชื่อต้องไม่เป็นค่าว่าง';
+    END IF;
+    
+    IF NEW.lastname IS NULL OR TRIM(NEW.lastname) = '' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'นามสกุลต้องไม่เป็นค่าว่าง';
+    END IF;
+    
+    -- ตรวจสอบความยาวของ firstname และ lastname
+    IF LENGTH(NEW.firstname) > 50 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'ชื่อต้องมีความยาวไม่เกิน 50 ตัวอักษร';
+    END IF;
+    
+    IF LENGTH(NEW.lastname) > 50 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'นามสกุลต้องมีความยาวไม่เกิน 50 ตัวอักษร';
     END IF;
 END$$
 
