@@ -1,0 +1,171 @@
+const jwt = require('jsonwebtoken');
+const { pool } = require('../config/db');
+
+// ฟังก์ชันสำหรับสร้าง token โดยไม่เก็บลงฐานข้อมูล
+exports.generateTokenWithoutStorage = (userId) => {
+  const payload = { id: userId };
+  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
+};
+
+// ฟังก์ชันสำหรับสร้างและอัปเดต token
+exports.generateToken = async (userId) => {
+  try {
+    // สร้าง JWT token
+    const payload = { id: userId };
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
+
+    // คำนวณ expires_at (7 วันจากปัจจุบัน)
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    // ตรวจสอบว่า user ถูกแบนหรือไม่
+    const [user] = await pool.query('SELECT is_banned FROM users WHERE id = ?', [userId]);
+    if (user.length === 0) {
+      throw new Error('ไม่พบผู้ใช้');
+    }
+    if (user[0].is_banned) {
+      throw new Error('ผู้ใช้ถูกระงับการใช้งาน');
+    }
+
+    // ทำให้ token เดิม expire (ถ้ามี) - Single Active Token Policy
+    await pool.query(
+      'UPDATE auth_tokens SET is_invalid = 1, expires_at = CURRENT_TIMESTAMP WHERE user_id = ? AND is_invalid = 0',
+      [userId]
+    );
+
+    // เพิ่ม token ใหม่
+    await pool.query(
+      `INSERT INTO auth_tokens (user_id, token, created_at, expires_at, is_invalid)
+       VALUES (?, ?, CURRENT_TIMESTAMP, ?, 0)`,
+      [userId, token, expiresAt]
+    );
+
+    return token;
+  } catch (err) {
+    throw new Error('ไม่สามารถสร้าง token ได้: ' + err.message);
+  }
+};
+
+// Middleware สำหรับตรวจสอบ token
+exports.protect = async (req, res, next) => {
+  let token;
+
+  // ตรวจสอบว่ามี token ในส่วนหัวของ request หรือไม่
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+
+  // ตรวจสอบว่ามี token หรือไม่
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      message: 'กรุณาเข้าสู่ระบบก่อนเข้าถึงข้อมูล'
+    });
+  }
+
+  try {
+    // ตรวจสอบความถูกต้องของ token ด้วย JWT
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // ตรวจสอบว่าผู้ใช้งานยังมีอยู่ในระบบหรือไม่
+    const [userRows] = await pool.query('SELECT * FROM users WHERE id = ?', [decoded.id]);
+    
+    if (userRows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: 'ไม่พบผู้ใช้งานในระบบ'
+      });
+    }
+
+    // ตรวจสอบว่าผู้ใช้งานถูกระงับหรือไม่
+    if (userRows[0].is_banned) {
+      return res.status(403).json({
+        success: false,
+        message: 'บัญชีผู้ใช้ถูกระงับการใช้งาน'
+      });
+    }
+
+    // ตรวจสอบว่า token อยู่ใน auth_tokens และยัง valid (สำหรับ token จาก login)
+    const [tokenRows] = await pool.query(
+      'SELECT * FROM auth_tokens WHERE user_id = ? AND token = ? AND is_invalid = 0 AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)',
+      [decoded.id, token]
+    );
+
+    if (tokenRows.length === 0) {
+      // ถ้า token ไม่อยู่ใน auth_tokens หรือไม่ valid, ตรวจสอบว่าเป็น token จาก register
+      // (token จาก register ไม่ถูกเก็บในฐานข้อมูล)
+      const [tokenInvalid] = await pool.query(
+        'SELECT * FROM auth_tokens WHERE token = ? AND is_invalid = 1',
+        [token]
+      );
+      
+      if (tokenInvalid.length > 0) {
+        return res.status(401).json({
+          success: false,
+          message: 'Session หมดอายุ กรุณาเข้าสู่ระบบใหม่อีกครั้ง'
+        });
+      }
+      
+      // ถ้า token ไม่อยู่ใน auth_tokens เลย (น่าจะเป็น token จาก register)
+      // อนุญาตให้ผ่านถ้า JWT valid และผู้ใช้มีอยู่ในระบบ
+      req.user = userRows[0];
+      return next();
+    }
+
+    // ตรวจสอบว่า user_id จาก token ตรงกับผู้ใช้ในตาราง auth_tokens
+    if (tokenRows[0].user_id !== decoded.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token ไม่สอดคล้องกับผู้ใช้งาน'
+      });
+    }
+
+    // เก็บข้อมูลผู้ใช้งานใน request สำหรับใช้ในขั้นตอนต่อไป
+    req.user = userRows[0];
+    next();
+  } catch (err) {
+    return res.status(401).json({
+      success: false,
+      message: 'Token ไม่ถูกต้องหรือหมดอายุ'
+    });
+  }
+};
+
+// Middleware สำหรับตรวจสอบสิทธิ์ของผู้ใช้งาน
+exports.authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: `สิทธิ์ ${req.user.role} ไม่สามารถเข้าถึงส่วนนี้ได้`
+      });
+    }
+    next();
+  };
+};
+
+// ฟังก์ชันสำหรับยกเลิก token
+exports.invalidateToken = async (token) => {
+  try {
+    const [result] = await pool.query(
+      'UPDATE auth_tokens SET is_invalid = 1, expires_at = CURRENT_TIMESTAMP WHERE token = ?',
+      [token]
+    );
+    return result.affectedRows > 0;
+  } catch (err) {
+    throw new Error('ไม่สามารถยกเลิก token ได้: ' + err.message);
+  }
+};
+
+// ฟังก์ชันสำหรับยกเลิก token ทั้งหมดของผู้ใช้
+exports.invalidateAllUserTokens = async (userId) => {
+  try {
+    const [result] = await pool.query(
+      'UPDATE auth_tokens SET is_invalid = 1, expires_at = CURRENT_TIMESTAMP WHERE user_id = ?',
+      [userId]
+    );
+    return result.affectedRows > 0;
+  } catch (err) {
+    throw new Error('ไม่สามารถยกเลิก token ของผู้ใช้ได้: ' + err.message);
+  }
+};
