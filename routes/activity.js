@@ -6,103 +6,119 @@ const { protect, authorize } = require('../middleware/auth');
 const applicantController = require('../controllers/applicantController');
 const router = express.Router();
 
-/**
- * @swagger
- * tags:
- *   name: Activities
- *   description: การจัดการข้อมูลกิจกรรม
- */
+
 
 /**
  * @swagger
- * components:
- *   schemas:
- *     Activity:
- *       type: object
- *       properties:
- *         id:
- *           type: integer
- *           description: รหัสกิจกรรม
- *         title:
- *           type: string
- *           description: ชื่อกิจกรรม
- *         description:
- *           type: string
- *           description: รายละเอียดกิจกรรม
- *         category:
- *           type: string
- *           description: ประเภทกิจกรรม
- *           enum: [อาสา, ช่วยงาน, อบรม]
- *         start_time:
- *           type: string
- *           format: date-time
- *           description: วันเวลาที่เริ่มต้น
- *         end_time:
- *           type: string
- *           format: date-time
- *           description: วันเวลาที่สิ้นสุด
- *         max_participants:
- *           type: integer
- *           description: จำนวนผู้เข้าร่วมสูงสุด
- *         status:
- *           type: string
- *           description: สถานะกิจกรรม
- *           enum: [รออนุมัติ, อนุมัติ, ปฏิเสธ, เสร็จสิ้น, ยกเลิก]
- *         created_by:
- *           type: integer
- *           description: รหัสผู้สร้างกิจกรรม
- *         creator_name:
- *           type: string
- *           description: ชื่อผู้สร้างกิจกรรม
- *         category_id:
- *           type: integer
- *           description: รหัสหมวดหมู่
- *         category_name:
- *           type: string
- *           description: ชื่อหมวดหมู่
- *         created_at:
- *           type: string
- *           format: date-time
- *           description: วันเวลาที่สร้าง
- *         application_count:
- *           type: integer
- *           description: จำนวนผู้สมัครเข้าร่วม
+ * /api/activities:
+ *   post:
+ *     summary: สร้างกิจกรรมใหม่ (เฉพาะ staff และ admin เท่านั้น)
+ *     tags: [Activities]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - description
+ *               - category_id
+ *               - start_date
+ *               - end_date
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 example: กิจกรรมปลูกป่า
+ *               description:
+ *                 type: string
+ *                 example: กิจกรรมอนุรักษ์ธรรมชาติที่อุทยาน
+ *               category_id:
+ *                 type: integer
+ *                 example: 1
+ *               start_date:
+ *                 type: string
+ *                 format: date
+ *                 example: 2025-06-01
+ *               end_date:
+ *                 type: string
+ *                 format: date
+ *                 example: 2025-06-03
+ *     responses:
+ *       201:
+ *         description: สร้างกิจกรรมสำเร็จ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: สร้างกิจกรรมสำเร็จ
+ *                 activity_id:
+ *                   type: integer
+ *                   example: 10
+ *       403:
+ *         description: ไม่มีสิทธิ์ในการสร้างกิจกรรม
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: คุณไม่มีสิทธิ์สร้างกิจกรรม
+ *       500:
+ *         description: เซิร์ฟเวอร์ผิดพลาด
  */
+router.post('/activities', protect, activityController.createActivity);
+
+
 
 /**
  * @swagger
  * /api/activities:
  *   get:
- *     summary: ดึงข้อมูลกิจกรรมทั้งหมด
+ *     summary: ดึงกิจกรรมทั้งหมด (พร้อมตัวกรองและการแบ่งหน้า)
  *     tags: [Activities]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: page
  *         schema:
  *           type: integer
- *           default: 1
- *         description: หน้าที่ต้องการดึงข้อมูล
+ *         required: false
+ *         description: หน้าปัจจุบัน (ค่าเริ่มต้นคือ 1)
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
- *           default: 10
- *         description: จำนวนรายการต่อหน้า
+ *         required: false
+ *         description: จำนวนกิจกรรมต่อหน้า (ค่าเริ่มต้นคือ 10)
  *       - in: query
  *         name: category
  *         schema:
  *           type: string
- *           enum: [อาสา, ช่วยงาน, อบรม]
- *         description: กรองตามประเภทกิจกรรม
+ *         required: false
+ *         description: หมวดหมู่กิจกรรม
  *       - in: query
  *         name: status
  *         schema:
  *           type: string
- *           enum: [รออนุมัติ, อนุมัติ, ปฏิเสธ, เสร็จสิ้น, ยกเลิก]
- *         description: กรองตามสถานะกิจกรรม (ใช้ได้เฉพาะ staff และ admin)
+ *         required: false
+ *         description: สถานะของกิจกรรม (เช่น อนุมัติ, ปฏิเสธ)
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: ค้นหาจากชื่อหรือคำอธิบายกิจกรรม
  *     responses:
  *       200:
- *         description: ดึงข้อมูลสำเร็จ
+ *         description: สำเร็จ
  *         content:
  *           application/json:
  *             schema:
@@ -113,208 +129,10 @@ const router = express.Router();
  *                   example: true
  *                 count:
  *                   type: integer
- *                   example: 5
+ *                   example: 10
  *                 total:
  *                   type: integer
- *                   example: 20
- *                 pagination:
- *                   type: object
- *                   properties:
- *                     current_page:
- *                       type: integer
- *                       example: 1
- *                     per_page:
- *                       type: integer
- *                       example: 10
- *                     total_pages:
- *                       type: integer
- *                       example: 2
- *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Activity'
- */
-router.get('/', activityController.getAllActivities);
-
-/**
- * @swagger
- * /api/activities/{id}:
- *   get:
- *     summary: ดึงข้อมูลกิจกรรมตาม ID
- *     tags: [Activities]
- *     parameters:
- *       - in: path
- *         name: id
- *         schema:
- *           type: integer
- *         required: true
- *         description: รหัสกิจกรรม
- *     responses:
- *       200:
- *         description: ดึงข้อมูลสำเร็จ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   $ref: '#/components/schemas/Activity'
- *       404:
- *         description: ไม่พบข้อมูล
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: ไม่พบข้อมูลกิจกรรม
- */
-router.get('/:id', activityController.getActivityById);
-
-
-
-
-/**
- * @swagger
- * /api/activities/{id}/status:
- *   put:
- *     summary: อัปเดตสถานะกิจกรรม (เสร็จสิ้น/ยกเลิก)
- *     tags:
- *       - Activities
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         schema:
- *           type: integer
- *         required: true
- *         description: รหัสกิจกรรม
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               status:
- *                 type: string
- *                 enum: [อนุมัติ, เสร็จสิ้น, ยกเลิก]
- *                 description: สถานะใหม่ของกิจกรรม
- *             example:
- *               status: "เสร็จสิ้น"
- *     responses:
- *       "200":
- *         description: อัปเดตสถานะสำเร็จ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "อัปเดตสถานะกิจกรรมเป็น เสร็จสิ้น สำเร็จ"
- *       "400":
- *         description: ข้อมูลไม่ถูกต้อง
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: "สถานะไม่ถูกต้อง"
- */
-router.put('/:id/status', protect, authorize('STAFF', 'ADMIN'), activityController.updateActivityStatus);
-
-/**
- * @swagger
- * /api/activities/{id}/approve:
- *   post:
- *     summary: อนุมัติหรือปฏิเสธกิจกรรมโดย Admin
- *     tags:
- *       - Activities
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         schema:
- *           type: integer
- *         required: true
- *         description: รหัสกิจกรรม
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               approved:
- *                 type: boolean
- *                 description: true เพื่ออนุมัติ, false เพื่อปฏิเสธ
- *             example:
- *               approved: true
- *     responses:
- *       "200":
- *         description: อนุมัติหรือปฏิเสธกิจกรรมสำเร็จ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "อนุมัติกิจกรรมสำเร็จ"
- */
-router.post('/:id/approve', protect, authorize('ADMIN'), activityController.approveActivity);
-
-/**
- * @swagger
- * /api/activities/{id}/applicants:
- *   get:
- *     summary: ดึงข้อมูลผู้สมัครทั้งหมดในกิจกรรม
- *     tags:
- *       - Activities
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         schema:
- *           type: integer
- *         required: true
- *         description: รหัสกิจกรรม
- *     responses:
- *       "200":
- *         description: ดึงข้อมูลสำเร็จ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 count:
- *                   type: integer
- *                   example: 5
+ *                   example: 100
  *                 data:
  *                   type: array
  *                   items:
@@ -322,169 +140,61 @@ router.post('/:id/approve', protect, authorize('ADMIN'), activityController.appr
  *                     properties:
  *                       id:
  *                         type: integer
- *                       status:
+ *                       title:
  *                         type: string
- *                       applied_at:
+ *                       description:
+ *                         type: string
+ *                       start_time:
  *                         type: string
  *                         format: date-time
- *                       user_id:
+ *                       end_time:
+ *                         type: string
+ *                         format: date-time
+ *                       max_participants:
  *                         type: integer
- *                       student_id:
+ *                       status:
  *                         type: string
- *                       firstname:
+ *                       category:
  *                         type: string
- *                       lastname:
+ *                       category_name:
  *                         type: string
+ *                       creator_name:
+ *                         type: string
+ *                       isRegistered:
+ *                         type: boolean
+ *                       applicationStatus:
+ *                         type: string
+ *                       currentParticipants:
+ *                         type: integer
+ *                       startDate:
+ *                         type: string
+ *                         format: date-time
+ *                       endDate:
+ *                         type: string
+ *                         format: date-time
+ *                       maxParticipants:
+ *                         type: integer
+ *                       isActive:
+ *                         type: boolean
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     current_page:
+ *                       type: integer
+ *                     per_page:
+ *                       type: integer
+ *                     total_pages:
+ *                       type: integer
+ *       500:
+ *         description: เซิร์ฟเวอร์มีปัญหา
  */
-router.get('/:id/applicants', protect, authorize('STAFF', 'ADMIN'), applicantController.getApplicants);
-/**
- * @swagger
- * /api/activities/{activityId}/applicants/{applicantId}/approve:
- *   post:
- *     summary: อนุมัติผู้สมัครเข้าร่วมกิจกรรม
- *     tags: [Applicants]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: activityId
- *         schema:
- *           type: integer
- *         required: true
- *         description: รหัสกิจกรรม
- *       - in: path
- *         name: applicantId
- *         schema:
- *           type: integer
- *         required: true
- *         description: รหัสการสมัคร
- *     responses:
- *       200:
- *         description: อนุมัติผู้สมัครสำเร็จ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: อนุมัติผู้สมัครสำเร็จ
- *       400:
- *         description: ข้อมูลไม่ถูกต้อง
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: ไม่สามารถอนุมัติได้ เนื่องจากกิจกรรมมีผู้เข้าร่วมเต็มแล้ว
- *       403:
- *         description: ไม่มีสิทธิ์เข้าถึง
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: คุณไม่มีสิทธิ์อนุมัติผู้สมัครกิจกรรมนี้
- *       404:
- *         description: ไม่พบข้อมูล
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: ไม่พบข้อมูลการสมัครนี้
- */
-router.post('/:activityId/applicants/:applicantId/approve', protect, authorize('STAFF', 'ADMIN'), applicantController.approveApplicant);
-
-/**
- * @swagger
- * /api/activities/{activityId}/applicants/{applicantId}/reject:
- *   post:
- *     summary: ปฏิเสธผู้สมัครเข้าร่วมกิจกรรม
- *     tags: [Applicants]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: activityId
- *         schema:
- *           type: integer
- *         required: true
- *         description: รหัสกิจกรรม
- *       - in: path
- *         name: applicantId
- *         schema:
- *           type: integer
- *         required: true
- *         description: รหัสการสมัคร
- *     responses:
- *       200:
- *         description: ปฏิเสธผู้สมัครสำเร็จ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: ปฏิเสธผู้สมัครสำเร็จ
- *       403:
- *         description: ไม่มีสิทธิ์เข้าถึง
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: คุณไม่มีสิทธิ์ปฏิเสธผู้สมัครกิจกรรมนี้
- *       404:
- *         description: ไม่พบข้อมูล
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: ไม่พบข้อมูลการสมัครนี้
- */
-router.post('/:activityId/applicants/:applicantId/reject', protect, authorize('STAFF', 'ADMIN'), applicantController.rejectApplicant);
-
+router.get('/', protect, activityController.getAllActivities);
 /**
  * @swagger
  * /api/activities/{id}:
  *   put:
  *     summary: แก้ไขข้อมูลกิจกรรม
- *     tags:
- *       - Activities
+ *     tags: [Activities]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -522,37 +232,239 @@ router.post('/:activityId/applicants/:applicantId/reject', protect, authorize('S
  *               max_participants:
  *                 type: integer
  *                 description: จำนวนผู้เข้าร่วมสูงสุด
+ *               status:
+ *                 type: string
+ *                 enum: [อนุมัติ, ปฏิเสธ, เสร็จสิ้น, ยกเลิก]
+ *                 description: สถานะกิจกรรม (เฉพาะ admin)
  *               location:
  *                 type: string
  *                 description: สถานที่จัดกิจกรรม
- *               cover_image:
- *                 type: string
- *                 description: URL รูปภาพปก
+ *               hours:
+ *                 type: number
+ *                 description: จำนวนชั่วโมงกิจกรรม
+ *               points:
+ *                 type: number
+ *                 description: คะแนนที่จะได้รับ
+ *               category_id:
+ *                 type: integer
+ *                 description: รหัสหมวดหมู่กิจกรรม
  *     responses:
- *       "200":
+ *       200:
  *         description: แก้ไขข้อมูลสำเร็จ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "แก้ไขข้อมูลกิจกรรมสำเร็จ"
- *                 data:
- *                   $ref: "#/components/schemas/Activity"
- *       "400":
+ *       400:
  *         description: ข้อมูลไม่ถูกต้อง
- *       "403":
- *         description: ไม่มีสิทธิ์เข้าถึง
- *       "404":
- *         description: ไม่พบข้อมูล
+ *       401:
+ *         description: ไม่ได้เข้าสู่ระบบ
+ *       403:
+ *         description: ไม่มีสิทธิ์แก้ไขกิจกรรม
+ *       404:
+ *         description: ไม่พบข้อมูลกิจกรรม
  */
 router.put('/:id', protect, authorize('STAFF', 'ADMIN'), activityController.updateActivity);
 
+/**
+ * @swagger
+ * /api/activities/{id}:
+ *   delete:
+ *     summary: ลบกิจกรรม
+ *     tags: [Activities]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: รหัสกิจกรรม
+ *     responses:
+ *       200:
+ *         description: ลบกิจกรรมสำเร็จ
+ *       401:
+ *         description: ไม่ได้เข้าสู่ระบบ
+ *       403:
+ *         description: ไม่มีสิทธิ์ลบกิจกรรม
+ *       404:
+ *         description: ไม่พบข้อมูลกิจกรรม
+ */
+router.delete('/:id', protect, authorize('STAFF', 'ADMIN'), activityController.deleteActivity);
 
+/**
+ * @swagger
+ * /api/activities/{id}/status:
+ *   put:
+ *     summary: อัปเดตสถานะกิจกรรม (เสร็จสิ้น/ยกเลิก)
+ *     tags: [Activities]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: รหัสกิจกรรม
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [อนุมัติ, เสร็จสิ้น, ยกเลิก]
+ *                 description: สถานะใหม่ของกิจกรรม
+ *             example:
+ *               status: "เสร็จสิ้น"
+ *     responses:
+ *       200:
+ *         description: อัปเดตสถานะสำเร็จ
+ *       400:
+ *         description: ข้อมูลไม่ถูกต้อง
+ *       401:
+ *         description: ไม่ได้เข้าสู่ระบบ
+ *       403:
+ *         description: ไม่มีสิทธิ์แก้ไขสถานะกิจกรรม
+ *       404:
+ *         description: ไม่พบข้อมูลกิจกรรม
+ */
+router.put('/:id/status', protect, authorize('STAFF', 'ADMIN'), activityController.updateActivityStatus);
+
+/**
+ * @swagger
+ * /api/activities/{id}/approve:
+ *   post:
+ *     summary: อนุมัติหรือปฏิเสธกิจกรรมโดย Admin
+ *     tags: [Activities]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: รหัสกิจกรรม
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               approved:
+ *                 type: boolean
+ *                 description: true เพื่ออนุมัติ, false เพื่อปฏิเสธ
+ *             example:
+ *               approved: true
+ *     responses:
+ *       200:
+ *         description: อนุมัติหรือปฏิเสธกิจกรรมสำเร็จ
+ *       400:
+ *         description: ข้อมูลไม่ถูกต้อง
+ *       401:
+ *         description: ไม่ได้เข้าสู่ระบบ
+ *       403:
+ *         description: ไม่มีสิทธิ์อนุมัติกิจกรรม
+ *       404:
+ *         description: ไม่พบข้อมูลกิจกรรม
+ */
+router.post('/:id/approve', protect, authorize('ADMIN'), activityController.approveActivity);
+
+/**
+ * @swagger
+ * /api/activities/{id}/applicants:
+ *   get:
+ *     summary: ดึงข้อมูลผู้สมัครทั้งหมดในกิจกรรม
+ *     tags: [Activities]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: รหัสกิจกรรม
+ *     responses:
+ *       200:
+ *         description: ดึงข้อมูลสำเร็จ
+ *       401:
+ *         description: ไม่ได้เข้าสู่ระบบ
+ *       403:
+ *         description: ไม่มีสิทธิ์เข้าถึงข้อมูล
+ *       404:
+ *         description: ไม่พบข้อมูลกิจกรรม
+ */
+router.get('/:id/applicants', protect, authorize('STAFF', 'ADMIN'), applicantController.getApplicants);
+
+/**
+ * @swagger
+ * /api/activities/{activityId}/applicants/{applicantId}/approve:
+ *   post:
+ *     summary: อนุมัติผู้สมัครเข้าร่วมกิจกรรม
+ *     tags: [Activities]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: activityId
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: รหัสกิจกรรม
+ *       - in: path
+ *         name: applicantId
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: รหัสการสมัคร
+ *     responses:
+ *       200:
+ *         description: อนุมัติผู้สมัครสำเร็จ
+ *       400:
+ *         description: ข้อมูลไม่ถูกต้อง
+ *       401:
+ *         description: ไม่ได้เข้าสู่ระบบ
+ *       403:
+ *         description: ไม่มีสิทธิ์อนุมัติผู้สมัคร
+ *       404:
+ *         description: ไม่พบข้อมูล
+ */
+router.post('/:activityId/applicants/:applicantId/approve', protect, authorize('STAFF', 'ADMIN'), applicantController.approveApplicant);
+
+/**
+ * @swagger
+ * /api/activities/{activityId}/applicants/{applicantId}/reject:
+ *   post:
+ *     summary: ปฏิเสธผู้สมัครเข้าร่วมกิจกรรม
+ *     tags: [Activities]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: activityId
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: รหัสกิจกรรม
+ *       - in: path
+ *         name: applicantId
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: รหัสการสมัคร
+ *     responses:
+ *       200:
+ *         description: ปฏิเสธผู้สมัครสำเร็จ
+ *       401:
+ *         description: ไม่ได้เข้าสู่ระบบ
+ *       403:
+ *         description: ไม่มีสิทธิ์ปฏิเสธผู้สมัคร
+ *       404:
+ *         description: ไม่พบข้อมูล
+ */
+router.post('/:activityId/applicants/:applicantId/reject', protect, authorize('STAFF', 'ADMIN'), applicantController.rejectApplicant);
 
 module.exports = router;

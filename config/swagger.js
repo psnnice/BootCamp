@@ -1,6 +1,9 @@
-// ไฟล์ - config/swagger.js
+// ไฟล์ - config/swagger.js (ปรับปรุง)
 const swaggerJsDoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
+
+// นำเข้าไฟล์ schemas
+require('./swagger-schemas');
 
 // Swagger Definition
 const swaggerOptions = {
@@ -35,7 +38,10 @@ const swaggerOptions = {
       }
     ]
   },
-  apis: ['./routes/*.js'], // ตำแหน่งของไฟล์ที่มี JSDoc comments
+  apis: [
+    './config/swagger-schemas.js',
+    './routes/*.js'
+  ], // เพิ่มไฟล์ schemas และ routes
 };
 
 const swaggerDocs = swaggerJsDoc(swaggerOptions);

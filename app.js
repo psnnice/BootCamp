@@ -1,3 +1,4 @@
+// updated app.js with activities routes
 const express = require('express');
 require('dotenv').config();
 const { swaggerUi, swaggerDocs } = require('./config/swagger');
@@ -7,8 +8,7 @@ const userBanRoutes = require('./routes/userBan');
 const activityRoutes = require('./routes/activity');
 const facultyRoutes = require('./routes/faculty');
 const { errorHandler } = require('./middleware/errorHandler');
-const cors =require("cors");
-
+const cors = require("cors");
 
 const app = express();
 
@@ -16,30 +16,28 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public')); // อนุญาตให้เข้าถึงไฟล์ในโฟลเดอร์ public
+
+// CORS configuration
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*'); // อนุญาตทุก origin
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE'); // อนุญาตทุก method
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization'); // อนุญาต header ที่จำเป็น
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   next();
 });
 
-
 app.use(cors({
-  origin: "http://localhost:5173",  // For development, you can use "*" (any origin)
+  origin: "http://localhost:5173",
   credentials: true
 }));
-
-
-
 
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api', userRoutes);
+app.use('/api/users', userRoutes);
 app.use('/api', userBanRoutes); // เพิ่ม route สำหรับ userBan
-app.use('/api/activities', activityRoutes);
+app.use('/api/activities', activityRoutes); // เพิ่ม route สำหรับ activities
 app.use('/api/faculties', facultyRoutes);
 app.use('/api/majors', express.Router().get('/', require('./controllers/facultyController').getAllMajors));
 
