@@ -7,6 +7,8 @@ const userBanRoutes = require('./routes/userBan');
 const activityRoutes = require('./routes/activity');
 const facultyRoutes = require('./routes/faculty');
 const { errorHandler } = require('./middleware/errorHandler');
+const cors =require("cors");
+
 
 const app = express();
 
@@ -20,6 +22,15 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization'); // อนุญาต header ที่จำเป็น
   next();
 });
+
+
+app.use(cors({
+  origin: "*",
+  Credential:true
+}));
+
+
+
 
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
