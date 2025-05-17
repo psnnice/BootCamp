@@ -1,4 +1,3 @@
-// ไฟล์ - routes/auth.js
 const express = require('express');
 const { register, login, getMe } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
@@ -18,6 +17,7 @@ const router = express.Router();
  *   post:
  *     summary: ลงทะเบียนผู้ใช้ใหม่
  *     tags: [Authentication]
+ *     description: สร้างบัญชีผู้ใช้ใหม่และออก JWT token สำหรับยืนยันตัวตน โดย token นี้จะไม่ถูกเก็บในฐานข้อมูล ผู้ใช้ต้องล็อกอินเพื่อรับ token ที่บันทึกในระบบ
  *     requestBody:
  *       required: true
  *       content:
@@ -25,14 +25,13 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             required:
- *               - student_id
  *               - email
  *               - password
  *               - full_name
  *             properties:
  *               student_id:
  *                 type: string
- *                 description: รหัสนิสิต 8 หลัก
+ *                 description: รหัสนิสิต 8 หลัก (ไม่บังคับ)
  *               email:
  *                 type: string
  *                 format: email
@@ -46,10 +45,10 @@ const router = express.Router();
  *                 description: ชื่อ-นามสกุล
  *               faculty_id:
  *                 type: integer
- *                 description: รหัสคณะ
+ *                 description: รหัสคณะ ต้องมีอยู่ในตาราง faculties (ไม่บังคับ)
  *               major_id:
  *                 type: integer
- *                 description: รหัสสาขา
+ *                 description: รหัสสาขา ต้องมีอยู่ในตาราง majors และสังกัดอยู่ใน faculty_id ที่ระบุ (ถ้ามี) (ไม่บังคับ)
  *             example:
  *               student_id: "12345678"
  *               email: "student@example.com"
@@ -59,7 +58,7 @@ const router = express.Router();
  *               major_id: 7
  *     responses:
  *       201:
- *         description: ลงทะเบียนสำเร็จ
+ *         description: ลงทะเบียนสำเร็จ ออก JWT token ใหม่สำหรับผู้ใช้ (ไม่เก็บในฐานข้อมูล)
  *         content:
  *           application/json:
  *             schema:
@@ -81,14 +80,27 @@ const router = express.Router();
  *                           type: integer
  *                         student_id:
  *                           type: string
+ *                           nullable: true
+ *                         email:
+ *                           type: string
  *                         full_name:
  *                           type: string
  *                         role:
  *                           type: string
+ *                         created_at:
+ *                           type: string
+ *                           format: date-time
+ *                         faculty_id:
+ *                           type: integer
+ *                           nullable: true
+ *                         major_id:
+ *                           type: integer
+ *                           nullable: true
  *                     token:
  *                       type: string
+ *                       description: JWT token สำหรับยืนยันตัวตน (ไม่บันทึกในฐานข้อมูล)
  *       400:
- *         description: ข้อมูลไม่ถูกต้อง
+ *         description: ข้อมูลไม่ถูกต้อง อีเมล/รหัสนิสิตซ้ำ หรือรหัสคณะ/สาขาไม่ถูกต้อง
  *         content:
  *           application/json:
  *             schema:
@@ -99,7 +111,7 @@ const router = express.Router();
  *                   example: false
  *                 message:
  *                   type: string
- *                   example: กรุณากรอกข้อมูลให้ครบถ้วน
+ *                   example: อีเมลนี้ถูกใช้งานแล้ว
  */
 router.post('/register', register);
 
@@ -109,6 +121,7 @@ router.post('/register', register);
  *   post:
  *     summary: เข้าสู่ระบบ
  *     tags: [Authentication]
+ *     description: เข้าสู่ระบบด้วยอีเมลและรหัสผ่าน ออก token ใหม่ซึ่งจะถูกเก็บในฐานข้อมูลและทำให้ session อื่นของผู้ใช้ถูกล็อกเอาท์ (Single Active Token Policy)
  *     requestBody:
  *       required: true
  *       content:
@@ -132,7 +145,7 @@ router.post('/register', register);
  *               password: "password123"
  *     responses:
  *       200:
- *         description: เข้าสู่ระบบสำเร็จ
+ *         description: เข้าสู่ระบบสำเร็จ ออก token ใหม่และล็อกเอาท์ session อื่น
  *         content:
  *           application/json:
  *             schema:
@@ -154,16 +167,30 @@ router.post('/register', register);
  *                           type: integer
  *                         student_id:
  *                           type: string
+ *                           nullable: true
  *                         email:
  *                           type: string
  *                         full_name:
  *                           type: string
  *                         role:
  *                           type: string
+ *                         faculty_id:
+ *                           type: integer
+ *                           nullable: true
+ *                         major_id:
+ *                           type: integer
+ *                           nullable: true
+ *                         profile_image:
+ *                           type: string
+ *                           nullable: true
+ *                         created_at:
+ *                           type: string
+ *                           format: date-time
  *                     token:
  *                       type: string
+ *                       description: JWT token ใหม่สำหรับยืนยันตัวตน (บันทึกในฐานข้อมูล)
  *       401:
- *         description: ข้อมูลไม่ถูกต้อง
+ *         description: อีเมลหรือรหัสผ่านไม่ถูกต้อง
  *         content:
  *           application/json:
  *             schema:
@@ -175,6 +202,19 @@ router.post('/register', register);
  *                 message:
  *                   type: string
  *                   example: อีเมลหรือรหัสผ่านไม่ถูกต้อง
+ *       403:
+ *         description: บัญชีถูกระงับ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: บัญชีผู้ใช้ถูกระงับการใช้งาน
  */
 router.post('/login', login);
 
@@ -184,6 +224,7 @@ router.post('/login', login);
  *   get:
  *     summary: ดึงข้อมูลผู้ใช้ปัจจุบัน
  *     tags: [Authentication]
+ *     description: ดึงข้อมูลผู้ใช้ที่ยืนยันตัวตนแล้ว รวมถึงชั่วโมงและคะแนนอาสา ต้องใช้ token ที่ valid (จาก register หรือ login)
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -204,24 +245,35 @@ router.post('/login', login);
  *                       type: integer
  *                     student_id:
  *                       type: string
+ *                       nullable: true
  *                     full_name:
  *                       type: string
  *                     role:
  *                       type: string
  *                     faculty_id:
  *                       type: integer
+ *                       nullable: true
  *                     faculty_name:
  *                       type: string
+ *                       nullable: true
  *                     major_id:
  *                       type: integer
+ *                       nullable: true
  *                     major_name:
  *                       type: string
+ *                       nullable: true
+ *                     profile_image:
+ *                       type: string
+ *                       nullable: true
+ *                     created_at:
+ *                       type: string
+ *                       format: date-time
  *                     total_hours:
  *                       type: number
  *                     total_points:
  *                       type: number
  *       401:
- *         description: ไม่มีสิทธิ์เข้าถึง
+ *         description: ไม่มีสิทธิ์เข้าถึงหรือ token ไม่ถูกต้อง
  *         content:
  *           application/json:
  *             schema:
@@ -232,7 +284,20 @@ router.post('/login', login);
  *                   example: false
  *                 message:
  *                   type: string
- *                   example: กรุณาเข้าสู่ระบบก่อนเข้าถึงข้อมูล
+ *                   example: Token ไม่ถูกต้องหรือหมดอายุ
+ *       403:
+ *         description: บัญชีถูกระงับ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: บัญชีผู้ใช้ถูกระงับการใช้งาน
  */
 router.get('/me', protect, getMe);
 

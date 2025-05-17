@@ -1,15 +1,6 @@
-// ไฟล์ - controllers/authController.js
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const { pool } = require('../config/db');
-const { emit } = require('../app');
-
-// ฟังก์ชันสร้าง Token
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN
-  });
-};
+const { generateToken, generateTokenWithoutStorage } = require('../middleware/auth');
 
 // ลงทะเบียนผู้ใช้งานใหม่
 exports.register = async (req, res, next) => {
@@ -20,7 +11,15 @@ exports.register = async (req, res, next) => {
     if (!email || !password || !full_name) {
       return res.status(400).json({
         success: false,
-        message: 'กรุณากรอกข้อมูลให้ครบถ้วน'
+        message: 'กรุณากรอกอีเมล รหัสผ่าน และชื่อ-นามสกุล'
+      });
+    }
+
+    // ตรวจสอบประเภทข้อมูล
+    if (typeof email !== 'string' || typeof password !== 'string' || typeof full_name !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'อีเมล รหัสผ่าน และชื่อ-นามสกุลต้องเป็นสตริง'
       });
     }
 
@@ -48,6 +47,12 @@ exports.register = async (req, res, next) => {
 
     // ตรวจสอบว่ารหัสนิสิตซ้ำหรือไม่ (ถ้ามีการระบุมา)
     if (student_id) {
+      if (typeof student_id !== 'string') {
+        return res.status(400).json({
+          success: false,
+          message: 'รหัสนิสิตต้องเป็นสตริง'
+        });
+      }
       const [existingUser] = await pool.query(
         'SELECT * FROM users WHERE student_id = ?',
         [student_id]
@@ -57,6 +62,53 @@ exports.register = async (req, res, next) => {
         return res.status(400).json({
           success: false,
           message: 'รหัสนิสิตนี้ถูกใช้งานแล้ว'
+        });
+      }
+    }
+
+    // ตรวจสอบ faculty_id (ถ้ามี)
+    if (faculty_id) {
+      if (!Number.isInteger(faculty_id)) {
+        return res.status(400).json({
+          success: false,
+          message: 'รหัสคณะต้องเป็นจำนวนเต็ม'
+        });
+      }
+      const [faculty] = await pool.query(
+        'SELECT id FROM faculties WHERE id = ?',
+        [faculty_id]
+      );
+      if (faculty.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'รหัสคณะไม่ถูกต้องหรือไม่มีอยู่ในระบบ'
+        });
+      }
+    }
+
+    // ตรวจสอบ major_id (ถ้ามี)
+    if (major_id) {
+      if (!Number.isInteger(major_id)) {
+        return res.status(400).json({
+          success: false,
+          message: 'รหัสสาขาต้องเป็นจำนวนเต็ม'
+        });
+      }
+      const [major] = await pool.query(
+        'SELECT id, faculty_id FROM majors WHERE id = ?',
+        [major_id]
+      );
+      if (major.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'รหัสสาขาไม่ถูกต้องหรือไม่มีอยู่ในระบบ'
+        });
+      }
+      // ถ้ามี faculty_id ตรวจสอบว่า major สังกัดอยู่ใน faculty นั้น
+      if (faculty_id && major[0].faculty_id !== faculty_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'สาขานี้ไม่ได้สังกัดอยู่ในคณะที่ระบุ'
         });
       }
     }
@@ -78,8 +130,8 @@ exports.register = async (req, res, next) => {
         [result.insertId]
       );
 
-      // สร้าง Token
-      const token = generateToken(result.insertId);
+      // สร้าง Token โดยไม่เก็บลงฐานข้อมูล
+      const token = generateTokenWithoutStorage(result.insertId);
 
       res.status(201).json({
         success: true,
@@ -97,6 +149,7 @@ exports.register = async (req, res, next) => {
   }
 };
 
+// เข้าสู่ระบบ
 exports.login = async (req, res, next) => {
   try {
     console.log('====== LOGIN ATTEMPT ======');
@@ -113,6 +166,15 @@ exports.login = async (req, res, next) => {
       return res.status(400).json({
         success: false,
         message: 'กรุณากรอกอีเมลและรหัสผ่าน'
+      });
+    }
+
+    // ตรวจสอบประเภทข้อมูล
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      console.log('LOGIN FAILED: Invalid data type');
+      return res.status(400).json({
+        success: false,
+        message: 'อีเมลและรหัสผ่านต้องเป็นสตริง'
       });
     }
 
@@ -149,8 +211,8 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    // สร้าง Token
-    const token = generateToken(user.id);
+    // สร้างและเก็บ Token
+    const token = await generateToken(user.id);
     
     console.log('LOGIN SUCCESS:', email);
     console.log('User ID:', user.id);
