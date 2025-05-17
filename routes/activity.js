@@ -7,7 +7,6 @@ const applicantController = require('../controllers/applicantController');
 const router = express.Router();
 
 
-
 /**
  * @swagger
  * /api/activities:
@@ -34,7 +33,7 @@ const router = express.Router();
  *                 example: กิจกรรมปลูกป่า
  *               description:
  *                 type: string
- *                 example: กิจกรรมอนุรักษ์ธรรมชาติที่อุทยาน
+ *                 example: ปลูกต้นไม้ที่เขาใหญ่
  *               category_id:
  *                 type: integer
  *                 example: 1
@@ -73,7 +72,7 @@ const router = express.Router();
  *       500:
  *         description: เซิร์ฟเวอร์ผิดพลาด
  */
-router.post('/activities', protect, activityController.createActivity);
+router.post('/', protect, activityController.createActivity);
 
 
 

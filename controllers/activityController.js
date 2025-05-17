@@ -16,7 +16,7 @@ exports.createActivity = async (req, res) => {
     const { title, description, category_id, start_date, end_date } = req.body;
 
     const [result] = await pool.query(
-      `INSERT INTO activities (title, description, category_id, start_date, end_date)
+      `INSERT INTO activities (title, description, category_id, start_time, end_time)
        VALUES (?, ?, ?, ?, ?)`,
       [title, description, category_id, start_date, end_date]
     );
@@ -49,7 +49,7 @@ exports.getAllActivities = async (req, res, next) => {
     let query = `
       SELECT a.*, 
              CONCAT(u.firstname, ' ', u.lastname) as creator_name, 
-             c.name as category_name
+             c.name as category
       FROM activities a
       LEFT JOIN users u ON a.created_by = u.id
       LEFT JOIN activity_categories c ON a.category_id = c.id
