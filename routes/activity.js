@@ -467,3 +467,62 @@ router.post('/:activityId/applicants/:applicantId/approve', protect, authorize('
 router.post('/:activityId/applicants/:applicantId/reject', protect, authorize('STAFF', 'ADMIN'), applicantController.rejectApplicant);
 
 module.exports = router;
+
+
+/**
+ * @swagger
+ * /api/activities/my:
+ *   get:
+ *     summary: ดึงข้อมูลกิจกรรมที่นิสิตได้สมัครไว้
+ *     tags: [Activities]
+ *     description: ดึงข้อมูลกิจกรรมที่นิสิตเคยสมัครทั้งหมด พร้อมสถานะการสมัคร
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: ดึงข้อมูลสำเร็จ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 count:
+ *                   type: integer
+ *                   example: 5
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       title:
+ *                         type: string
+ *                       description:
+ *                         type: string
+ *                       type:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                       startDate:
+ *                         type: string
+ *                         format: date-time
+ *                       endDate:
+ *                         type: string
+ *                         format: date-time
+ *                       maxParticipants:
+ *                         type: integer
+ *                       isRegistered:
+ *                         type: boolean
+ *                       applicationStatus:
+ *                         type: string
+ *                       appliedAt:
+ *                         type: string
+ *                         format: date-time
+ *       401:
+ *         description: ไม่ได้เข้าสู่ระบบ
+ */
+router.get('/my', protect, activityController.getMyActivities);
