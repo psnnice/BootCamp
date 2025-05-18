@@ -40,6 +40,7 @@ app.use('/api', userBanRoutes); // เพิ่ม route สำหรับ user
 app.use('/api/activities', activityRoutes); // เพิ่ม route สำหรับ activities
 app.use('/api/faculties', facultyRoutes);
 app.use('/api/majors', express.Router().get('/', require('./controllers/facultyController').getAllMajors));
+app.use('/api', require('./routes/user')); // เพิ่มบรรทัดนี้
 
 // Root endpoint
 app.get('/api', (req, res) => {

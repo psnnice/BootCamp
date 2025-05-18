@@ -526,3 +526,79 @@ module.exports = router;
  *         description: ไม่ได้เข้าสู่ระบบ
  */
 router.get('/my', protect, activityController.getMyActivities);
+
+
+
+/**
+ * @swagger
+ * /api/activities/pending:
+ *   get:
+ *     summary: ดึงกิจกรรมที่รออนุมัติ (Admin เท่านั้น)
+ *     tags: [Activities]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: ดึงข้อมูลสำเร็จ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 count:
+ *                   type: integer
+ *                   example: 5
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Activity'
+ *       401:
+ *         description: ไม่ได้เข้าสู่ระบบ
+ *       403:
+ *         description: ไม่มีสิทธิ์เข้าถึงข้อมูล
+ */
+router.get('/pending', protect, authorize('ADMIN'), activityController.getPendingActivities);
+
+/**
+ * @swagger
+ * /api/activities/{id}/approve:
+ *   post:
+ *     summary: อนุมัติหรือปฏิเสธกิจกรรมโดย Admin
+ *     tags: [Activities]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: รหัสกิจกรรม
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               approved:
+ *                 type: boolean
+ *                 description: true เพื่ออนุมัติ, false เพื่อปฏิเสธ
+ *             example:
+ *               approved: true
+ *     responses:
+ *       200:
+ *         description: อนุมัติหรือปฏิเสธกิจกรรมสำเร็จ
+ *       400:
+ *         description: ข้อมูลไม่ถูกต้อง
+ *       401:
+ *         description: ไม่ได้เข้าสู่ระบบ
+ *       403:
+ *         description: ไม่มีสิทธิ์อนุมัติกิจกรรม
+ *       404:
+ *         description: ไม่พบข้อมูลกิจกรรม
+ */
+router.post('/:id/approve', protect, authorize('ADMIN'), activityController.approveActivity);

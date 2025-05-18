@@ -130,3 +130,91 @@ exports.getUserById = async (req, res, next) => {
     next(err);
   }
 };
+
+// เพิ่มฟังก์ชันนี้ในไฟล์ controllers/userController.js
+
+// เปลี่ยนบทบาทผู้ใช้ (เฉพาะ Admin)
+exports.changeUserRole = async (req, res, next) => {
+  const timeout = setTimeout(() => {
+    return res.status(408).json({
+      success: false,
+      message: 'Request timeout'
+    });
+  }, 5000);
+
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    // ตรวจสอบว่า role ที่ส่งมาถูกต้อง
+    const validRoles = ['STUDENT', 'STAFF', 'ADMIN'];
+    if (!validRoles.includes(role)) {
+      clearTimeout(timeout);
+      return res.status(400).json({
+        success: false,
+        message: 'บทบาทไม่ถูกต้อง'
+      });
+    }
+
+    // หาผู้ใช้ที่ต้องการเปลี่ยน role
+    const [users] = await pool.query('SELECT * FROM users WHERE id = ?', [id]);
+    
+    if (users.length === 0) {
+      clearTimeout(timeout);
+      return res.status(404).json({
+        success: false,
+        message: 'ไม่พบผู้ใช้'
+      });
+    }
+
+    // ป้องกันการเปลี่ยน role ของ ADMIN คนสุดท้าย
+    if (users[0].role === 'ADMIN' && role !== 'ADMIN') {
+      const [adminCount] = await pool.query(
+        'SELECT COUNT(*) as count FROM users WHERE role = "ADMIN"'
+      );
+      
+      if (adminCount[0].count <= 1) {
+        clearTimeout(timeout);
+        return res.status(400).json({
+          success: false,
+          message: 'ไม่สามารถเปลี่ยน role ของ Admin คนสุดท้ายได้'
+        });
+      }
+    }
+
+    // อัปเดต role
+    await pool.query(
+      'UPDATE users SET role = ? WHERE id = ?',
+      [role, id]
+    );
+
+    // บันทึกประวัติการเปลี่ยน role
+    await pool.query(
+      'INSERT INTO user_roles (user_id, role, granted_by) VALUES (?, ?, ?)',
+      [id, role, req.user.id]
+    );
+
+    clearTimeout(timeout);
+
+    // ดึงข้อมูลผู้ใช้ที่อัปเดตแล้ว
+    const [updatedUser] = await pool.query(`
+      SELECT u.id, u.student_id, u.email, u.firstname, u.lastname, u.role, u.is_banned, u.created_at,
+             u.faculty_id, f.name as faculty_name, u.major_id, m.name as major_name, u.profile_image
+      FROM users u
+      LEFT JOIN faculties f ON u.faculty_id = f.id
+      LEFT JOIN majors m ON u.major_id = m.id
+      WHERE u.id = ?
+    `, [id]);
+
+    res.status(200).json({
+      success: true,
+      message: `เปลี่ยนบทบาทเป็น ${role} สำเร็จ`,
+      data: updatedUser[0]
+    });
+
+  } catch (err) {
+    clearTimeout(timeout);
+    console.error('Error in changeUserRole:', err);
+    next(err);
+  }
+};

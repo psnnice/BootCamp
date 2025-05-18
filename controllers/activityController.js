@@ -1343,3 +1343,181 @@ exports.approveActivity = async (req, res, next) => {
     next(err);
   }
 };
+
+/**
+ * @desc    Get pending activities (Admin only)
+ * @route   GET /api/activities/pending
+ * @access  Private (Admin)
+ */
+exports.getPendingActivities = async (req, res, next) => {
+  try {
+    // Ensure user is admin
+    if (!req.user || req.user.role !== 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        message: 'เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถดูกิจกรรมที่รออนุมัติได้'
+      });
+    }
+
+    // Get all pending activities
+    const [activities] = await pool.query(`
+      SELECT a.*, 
+             CONCAT(u.firstname, ' ', u.lastname) as creator_name, 
+             c.name as category_name
+      FROM activities a
+      LEFT JOIN users u ON a.created_by = u.id
+      LEFT JOIN activity_categories c ON a.category_id = c.id
+      WHERE a.status = 'รออนุมัติ'
+      ORDER BY a.created_at DESC
+    `);
+
+    // Get participant count for each activity
+    for (const activity of activities) {
+      const [participantCount] = await pool.query(
+        'SELECT COUNT(*) as count FROM activity_applications WHERE activity_id = ? AND status = "อนุมัติ"',
+        [activity.id]
+      );
+      
+      activity.current_participants = participantCount[0].count;
+    }
+
+    // Format dates and additional fields
+    activities.forEach(activity => {
+      activity.startDate = activity.start_time;
+      activity.endDate = activity.end_time;
+      activity.maxParticipants = activity.max_participants;
+      activity.isActive = false; // Pending activities are not active
+    });
+
+    res.status(200).json({
+      success: true,
+      count: activities.length,
+      data: activities
+    });
+  } catch (err) {
+    console.error('Error in getPendingActivities:', err);
+    next(err);
+  }
+};
+
+
+/**
+ * @desc    Get all activities for Admin (no status filter)
+ * @route   GET /api/activities/admin/all
+ * @access  Private (Admin)
+ */
+exports.getAllActivitiesForAdmin = async (req, res, next) => {
+  try {
+    // Ensure user is admin
+    if (!req.user || req.user.role !== 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        message: 'เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถดูกิจกรรมทั้งหมดได้'
+      });
+    }
+
+    // Parse query parameters for filtering and pagination
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+    const category = req.query.category || '';
+    const status = req.query.status || '';
+    const search = req.query.search || '';
+    
+    // Build the base query - Admin sees ALL activities
+    let query = `
+      SELECT a.*, 
+             CONCAT(u.firstname, ' ', u.lastname) as creator_name, 
+             c.name as category_name
+      FROM activities a
+      LEFT JOIN users u ON a.created_by = u.id
+      LEFT JOIN activity_categories c ON a.category_id = c.id
+      WHERE 1=1
+    `;
+    
+    // Add filter parameters
+    const params = [];
+    
+    // Filter by category
+    if (category) {
+      query += ` AND a.category = ?`;
+      params.push(category);
+    }
+    
+    // Filter by status
+    if (status) {
+      query += ` AND a.status = ?`;
+      params.push(status);
+    }
+    
+    // Filter by search term
+    if (search) {
+      query += ` AND (a.title LIKE ? OR a.description LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`);
+    }
+    
+    // Count total matching records for pagination
+    let countQuery = `
+      SELECT COUNT(*) as total 
+      FROM activities a
+      WHERE 1=1
+    `;
+    
+    // Add the same filters to count query
+    let countParams = [...params];
+    
+    if (category) {
+      countQuery += ` AND a.category = ?`;
+    }
+    
+    if (status) {
+      countQuery += ` AND a.status = ?`;
+    }
+    
+    if (search) {
+      countQuery += ` AND (a.title LIKE ? OR a.description LIKE ?)`;
+    }
+    
+    // Add order, limit and offset to the main query
+    query += ` ORDER BY a.created_at DESC LIMIT ? OFFSET ?`;
+    params.push(parseInt(limit), parseInt(offset));
+    
+    // Execute both queries
+    const [activities] = await pool.query(query, params);
+    const [countResult] = await pool.query(countQuery, countParams);
+    
+    // Get participant count for each activity
+    for (const activity of activities) {
+      const [participantCount] = await pool.query(
+        'SELECT COUNT(*) as count FROM activity_applications WHERE activity_id = ? AND status = "อนุมัติ"',
+        [activity.id]
+      );
+      
+      activity.current_participants = participantCount[0].count;
+    }
+    
+    // Format dates for consistent response
+    activities.forEach(activity => {
+      activity.startDate = activity.start_time;
+      activity.endDate = activity.end_time;
+      activity.maxParticipants = activity.max_participants;
+      activity.isActive = activity.status === 'อนุมัติ' && 
+                       new Date(activity.end_time) > new Date();
+    });
+    
+    res.status(200).json({
+      success: true,
+      count: activities.length,
+      total: countResult[0].total,
+      data: activities,
+      pagination: {
+        current_page: page,
+        per_page: limit,
+        total_pages: Math.ceil(countResult[0].total / limit)
+      }
+    });
+  } catch (err) {
+    console.error('Error in getAllActivitiesForAdmin:', err);
+    next(err);
+  }
+};
