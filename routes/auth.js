@@ -332,12 +332,21 @@ router.post('/logout-all', protect, logoutAll);
  *                     student_id:
  *                       type: string
  *                       nullable: true
+<<<<<<< HEAD
+=======
+ *                     email:
+ *                       type: string
+ *                       nullable: true
+>>>>>>> FixAuthMe
  *                     firstname:
  *                       type: string
  *                     lastname:
  *                       type: string
+<<<<<<< HEAD
  *                     full_name:
  *                       type: string
+=======
+>>>>>>> FixAuthMe
  *                     role:
  *                       type: string
  *                     faculty_id:

@@ -25,10 +25,15 @@ const router = express.Router();
  *               - title
  *               - description
  *               - category_id
+<<<<<<< HEAD
  *               - start_time
  *               - end_time
  *               - max_participants
  *               - category
+=======
+ *               - start_date
+ *               - end_date
+>>>>>>> FixAuthMe
  *             properties:
  *               title:
  *                 type: string
@@ -39,6 +44,7 @@ const router = express.Router();
  *               category_id:
  *                 type: integer
  *                 example: 1
+<<<<<<< HEAD
  *               category:
  *                 type: string
  *                 enum: [อาสา, ช่วยงาน, อบรม]
@@ -54,6 +60,16 @@ const router = express.Router();
  *               max_participants:
  *                 type: integer
  *                 example: 50
+=======
+ *               start_date:
+ *                 type: string
+ *                 format: date
+ *                 example: 2025-06-01
+ *               end_date:
+ *                 type: string
+ *                 format: date
+ *                 example: 2025-06-03
+>>>>>>> FixAuthMe
  *     responses:
  *       201:
  *         description: สร้างกิจกรรมสำเร็จ
@@ -62,6 +78,7 @@ const router = express.Router();
  *             schema:
  *               type: object
  *               properties:
+<<<<<<< HEAD
  *                 success:
  *                   type: boolean
  *                   example: true
@@ -70,6 +87,14 @@ const router = express.Router();
  *                   example: สร้างกิจกรรมสำเร็จ
  *                 data:
  *                   type: object
+=======
+ *                 message:
+ *                   type: string
+ *                   example: สร้างกิจกรรมสำเร็จ
+ *                 activity_id:
+ *                   type: integer
+ *                   example: 10
+>>>>>>> FixAuthMe
  *       403:
  *         description: ไม่มีสิทธิ์ในการสร้างกิจกรรม
  *         content:
@@ -77,9 +102,12 @@ const router = express.Router();
  *             schema:
  *               type: object
  *               properties:
+<<<<<<< HEAD
  *                 success:
  *                   type: boolean
  *                   example: false
+=======
+>>>>>>> FixAuthMe
  *                 message:
  *                   type: string
  *                   example: คุณไม่มีสิทธิ์สร้างกิจกรรม
@@ -249,6 +277,18 @@ router.get('/', protect, activityController.getAllActivities);
  *                 type: string
  *                 enum: [อนุมัติ, ปฏิเสธ, เสร็จสิ้น, ยกเลิก]
  *                 description: สถานะกิจกรรม (เฉพาะ admin)
+<<<<<<< HEAD
+=======
+ *               location:
+ *                 type: string
+ *                 description: สถานที่จัดกิจกรรม
+ *               hours:
+ *                 type: number
+ *                 description: จำนวนชั่วโมงกิจกรรม
+ *               points:
+ *                 type: number
+ *                 description: คะแนนที่จะได้รับ
+>>>>>>> FixAuthMe
  *               category_id:
  *                 type: integer
  *                 description: รหัสหมวดหมู่กิจกรรม
@@ -471,6 +511,7 @@ router.post('/:activityId/applicants/:applicantId/approve', protect, authorize('
  */
 router.post('/:activityId/applicants/:applicantId/reject', protect, authorize('STAFF', 'ADMIN'), applicantController.rejectApplicant);
 
+<<<<<<< HEAD
 // ไฟล์ - routes/activity.js
 // เพิ่มเส้นทาง API สำหรับการสมัครกิจกรรม
 
@@ -590,10 +631,14 @@ router.delete('/:id/apply', protect, activityController.cancelApplication);
  *         description: ไม่พบกิจกรรม
  */
 router.post('/:id/toggle', protect, activityController.toggleRegistration);
+=======
+module.exports = router;
+>>>>>>> FixAuthMe
 
 
 /**
  * @swagger
+<<<<<<< HEAD
  * /api/activities/{id}/participants:
  *   get:
  *     summary: ดึงข้อมูลผู้สมัครที่ได้รับการอนุมัติ (สำหรับนิสิต)
@@ -607,6 +652,15 @@ router.post('/:id/toggle', protect, activityController.toggleRegistration);
  *           type: integer
  *         required: true
  *         description: รหัสกิจกรรม
+=======
+ * /api/activities/my:
+ *   get:
+ *     summary: ดึงข้อมูลกิจกรรมที่นิสิตได้สมัครไว้
+ *     tags: [Activities]
+ *     description: ดึงข้อมูลกิจกรรมที่นิสิตเคยสมัครทั้งหมด พร้อมสถานะการสมัคร
+ *     security:
+ *       - bearerAuth: []
+>>>>>>> FixAuthMe
  *     responses:
  *       200:
  *         description: ดึงข้อมูลสำเร็จ
@@ -618,6 +672,7 @@ router.post('/:id/toggle', protect, activityController.toggleRegistration);
  *                 success:
  *                   type: boolean
  *                   example: true
+<<<<<<< HEAD
  *                 activity_id:
  *                   type: integer
  *                   example: 5
@@ -630,11 +685,17 @@ router.post('/:id/toggle', protect, activityController.toggleRegistration);
  *                 max_participants:
  *                   type: integer
  *                   example: 50
+=======
+ *                 count:
+ *                   type: integer
+ *                   example: 5
+>>>>>>> FixAuthMe
  *                 data:
  *                   type: array
  *                   items:
  *                     type: object
  *                     properties:
+<<<<<<< HEAD
  *                       firstname:
  *                         type: string
  *                       lastname:
@@ -997,3 +1058,34 @@ router.post('/:activityId/applicants/:applicantId/score', protect, authorize('ST
  */
 router.post('/:activityId/attendees/score', protect, authorize('STAFF', 'ADMIN'), applicantController.assignHoursAndPointsToAll);
 module.exports = router;
+=======
+ *                       id:
+ *                         type: integer
+ *                       title:
+ *                         type: string
+ *                       description:
+ *                         type: string
+ *                       type:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                       startDate:
+ *                         type: string
+ *                         format: date-time
+ *                       endDate:
+ *                         type: string
+ *                         format: date-time
+ *                       maxParticipants:
+ *                         type: integer
+ *                       isRegistered:
+ *                         type: boolean
+ *                       applicationStatus:
+ *                         type: string
+ *                       appliedAt:
+ *                         type: string
+ *                         format: date-time
+ *       401:
+ *         description: ไม่ได้เข้าสู่ระบบ
+ */
+router.get('/my', protect, activityController.getMyActivities);
+>>>>>>> FixAuthMe

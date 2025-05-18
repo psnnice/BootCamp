@@ -187,6 +187,7 @@ exports.rejectApplicant = async (req, res, next) => {
     console.error('Error in rejectApplicant:', err);
     next(err);
   }
+<<<<<<< HEAD
 };
 
 
@@ -776,4 +777,6 @@ exports.assignHoursAndPointsToAll = async (req, res, next) => {
     console.error('Error in assignHoursAndPointsToAll:', err);
     next(err);
   }
+=======
+>>>>>>> FixAuthMe
 };
