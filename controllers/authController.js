@@ -254,11 +254,7 @@ exports.getMe = async (req, res, next) => {
   try {
     // ดึงข้อมูลผู้ใช้งานจากฐานข้อมูลอีกครั้ง (เพื่อให้ได้ข้อมูลล่าสุด)
     const [user] = await pool.query(
-<<<<<<< HEAD
-      `SELECT u.id, u.student_id, u.firstname, u.lastname, u.role, u.created_at, 
-=======
       `SELECT u.id, u.student_id, u.email, u.firstname, u.lastname, u.role, u.created_at, 
->>>>>>> FixAuthMe
       u.faculty_id, f.name as faculty_name, u.major_id, m.name as major_name, u.profile_image
       FROM users u
       LEFT JOIN faculties f ON u.faculty_id = f.id
